@@ -4,20 +4,19 @@
  * Press X to switch between animations
  */
 
+#include <stdlib.h>
+#include <libgte.h>
 #include <sys/types.h>
 #include <libetc.h>
-#include <libgte.h>
 #include <libgpu.h>
-#include <libpad.h>
 
 // Include model and animations
 #include "rika.h"
 #include "rika-idle.h"
 #include "rika-walk.h"
 
-// Include texture (convert with: bin2c rikatexture.tim rikatexture_tim.h rikatexture_tim)
-#include "rikatexture_tim.h"
-extern u_long rikatexture_tim[];
+// Include texture
+#include "rikatexture.h"
 
 // Display settings
 #define SCREEN_WIDTH  320
@@ -44,19 +43,18 @@ char primbuff[2][131072];
 char *nextpri;
 
 // Controller
-u_long padState;
-u_long padStateOld;
-u_char padbuff[2][34];
+u_long padState = 0;
+u_long padStateOld = 0;
 
 // Texture info
-// TIM_IMAGE tim;
+TIM_IMAGE tim;
 u_short tpage = 0;
 u_short clut = 0;
 
 // Transform
 MATRIX world_matrix;
 SVECTOR rotation = {0, 0, 0};
-VECTOR translation = {0, 1500, 4000};  // Move up and back
+VECTOR translation = {0, 4000, 4000};
 VECTOR scale = {ONE, ONE, ONE};
 
 // Animation state
@@ -64,6 +62,9 @@ int current_anim = 0;  // 0 = idle, 1 = walk
 int current_frame = 0;
 int frame_timer = 0;
 #define ANIM_SPEED 2  // Update every 2 vsyncs
+
+// Font stream ID
+int fontId = -1;
 
 // Get current animation frame count
 int getAnimFrameCount(void) {
@@ -103,6 +104,10 @@ void initDisplay(void) {
     setRGB0(&db[0].draw, 40, 60, 80);
     setRGB0(&db[1].draw, 40, 60, 80);
     
+    // Initialize font for text display
+    FntLoad(960, 256);
+    fontId = FntOpen(16, 16, 288, 64, 0, 512);
+    
     SetDispMask(1);
 }
 
@@ -119,15 +124,14 @@ void initGTE(void) {
 // Initialize controller
 //----------------------------------------------------------
 void initController(void) {
-    PadInit(0);
-    PadStartCom();
+    PadInit(0);  // Initialize controller system
+    padState = 0;
+    padStateOld = 0;
 }
 
 //----------------------------------------------------------
 // Load texture into VRAM
-// Uncomment when you have the texture converted
 //----------------------------------------------------------
-/*
 void loadTexture(void) {
     OpenTIM((u_long*)rikatexture_tim);
     ReadTIM(&tim);
@@ -143,7 +147,6 @@ void loadTexture(void) {
     
     tpage = getTPage(tim.mode & 0x3, 0, tim.prect->x, tim.prect->y);
 }
-*/
 
 //----------------------------------------------------------
 // Update animation
@@ -164,22 +167,16 @@ void updateAnimation(void) {
 //----------------------------------------------------------
 void handleInput(void) {
     padStateOld = padState;
-    padState = PadRead(0);
+    padState = PadRead(0);  // Read pad 0 (first controller)
     
-    // X button to switch animation
-    if ((padState & PADRdown) && !(padStateOld & PADRdown)) {
+    // Triangle button to switch animation
+    if ((padState & PADRup) && !(padStateOld & PADRup)) {
         current_anim = !current_anim;
         current_frame = 0;
         frame_timer = 0;
     }
     
-    // D-pad to rotate
-    if (padState & PADLup) {
-        rotation.vx -= 32;
-    }
-    if (padState & PADLdown) {
-        rotation.vx += 32;
-    }
+    // D-pad left/right for Y rotation
     if (padState & PADLleft) {
         rotation.vy -= 32;
     }
@@ -187,12 +184,28 @@ void handleInput(void) {
         rotation.vy += 32;
     }
     
-    // L1/R1 to zoom
+    // D-pad up/down for X rotation
+    if (padState & PADLup) {
+        rotation.vx -= 32;
+    }
+    if (padState & PADLdown) {
+        rotation.vx += 32;
+    }
+    
+    // L1/R1 for zoom
     if (padState & PADL1) {
-        translation.vz += 100;
+        translation.vz += 50;
     }
     if (padState & PADR1) {
-        translation.vz -= 100;
+        translation.vz -= 50;
+    }
+
+    // L2/R2 for height
+    if (padState & PADL2) {
+        translation.vy += 50;
+    }
+    if (padState & PADR2) {
+        translation.vy -= 50;
     }
 }
 
@@ -314,7 +327,7 @@ int main(void) {
     initDisplay();
     initGTE();
     initController();
-    // loadTexture();  // Uncomment when texture is ready
+    loadTexture();
     
     // Main loop
     while (1) {
@@ -333,6 +346,11 @@ int main(void) {
         
         // Reset primitive buffer
         nextpri = primbuff[currentBuffer];
+        
+        // Display animation state
+        FntPrint(fontId, "Animation: %s\n", current_anim == 0 ? "IDLE" : "WALK");
+        FntPrint(fontId, "Frame: %d/%d\n", current_frame, getAnimFrameCount());
+        FntFlush(fontId);
         
         // Render model with current animation frame
         renderModel(getCurrentAnimVerts());

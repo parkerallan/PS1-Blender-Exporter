@@ -1,6 +1,6 @@
 # PlayStation 1 Blender Exporter
 
-A Blender 4.0 addon that exports 3D models and animation data to C header files compatible with Sony's PSY-Q SDK or PsyQo/Nugget for PlayStation 1 development.
+A Blender 4.0 addon that exports 3D models and animation data to C header files compatible with Sony's PSY-Q or PsyQo for PlayStation 1 development.
 
 ## Features
 
@@ -12,10 +12,12 @@ A Blender 4.0 addon that exports 3D models and animation data to C header files 
 
 ## Installation
 
-1. Open Blender 4.0
-2. Go to `Edit → Preferences → Add-ons`
-3. Click `Install...` and select `ps1_exporter.py`
-4. Enable "PlayStation 1 Exporter" in the addon list
+1. Download `ps1_exporter.py` from the Releases tab
+2. Extract from zip
+3. Open Blender 4.0
+4. Go to `Edit → Preferences → Add-ons`
+5. Click `Install...` and select `ps1_exporter.py`
+6. Enable "PlayStation 1 Exporter" in the addon list
 
 ## Usage
 
@@ -118,6 +120,6 @@ The exporter uses a scale factor of **3072** to convert Blender units to PS1 fix
 ## Requirements
 
 - Blender 4.0
-- PSY-Q or PsyQo/Nugget SDK
+- PSY-Q or PsyQo SDK
 - png2tim for image conversion to the TIM format
 - bin2header.py, bin2c, or similar header conversion tool for rendering textured models.

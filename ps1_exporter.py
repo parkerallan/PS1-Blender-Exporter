@@ -198,7 +198,7 @@ class ExportPS1(Operator, ExportHelper):
         description="Choose the header file format",
         items=[
             ('PSYQ', "PSyQ (C)", "Export for PSyQ SDK (C) with libgte.h"),
-            ('PSYQO', "PSyQo/Nugget (C++)", "Export for PSyQo/Nugget SDK (C++) with stdint.h"),
+            ('PSYQO', "PSyQo (C++)", "Export for PSyQo SDK (C++) with stdint.h"),
         ],
         default='PSYQ'
     )
@@ -209,7 +209,8 @@ class ExportPS1(Operator, ExportHelper):
         layout.prop(self, "convert_coords")
         layout.prop(self, "force_unlit")
         layout.prop(self, "export_animations")
-        layout.prop(self, "header_type")
+        layout.label(text="Header Type:")
+        layout.prop(self, "header_type", text="")
     
     def execute(self, context):
         return self.export_ps1(context)
