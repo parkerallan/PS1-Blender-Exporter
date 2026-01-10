@@ -1,6 +1,8 @@
 # PlayStation 1 Blender Exporter
 
-A Blender 4.0 addon that exports 3D models and animation data to C header files compatible with Sony's PSY-Q or PsyQo for PlayStation 1 development.
+A Blender 4.0 addon that exports 3D models and animation data to C header files compatible with Sony's PSY-Q or PsyQo for PlayStation 1 development.  
+
+<img width="1226" height="942" alt="Screenshot 2026-01-10 124122" src="https://github.com/user-attachments/assets/57d44c12-bf90-4601-ae0e-88db7622bb51" />
 
 ## Features
 
