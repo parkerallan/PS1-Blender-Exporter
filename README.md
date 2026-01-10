@@ -111,12 +111,12 @@ The exporter uses a scale factor of **3072** to convert Blender units to PS1 fix
 
 1. Assign materials with Image Texture nodes in Blender
 2. Export the model (texture filenames are captured)
-3. Convert textures to TIM format (see tools folder):
+3. Convert textures to TIM format and then C header (see tools folder):
    ```bash
-   .\png2tim-main\png2tim.exe -p 320 0 texture.png
+   .\png2tim.exe -p 320 0 texture.png
    python bin2header.py texture.tim texture.h texture_tim
    ```
-4. Include and load in your project, see the example folder for working examples of an animated model
+4. Include and load in your project, see the examples folder for working examples of an animated model
 
 
 ## Requirements
