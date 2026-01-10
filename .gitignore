@@ -1,3 +1,9 @@
 /outdated
 /ps1test
 chat.json
+/third_party
+.vscode
+.DS_Store
+env
+.gitmodules
+/png2tim-main

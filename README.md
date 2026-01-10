@@ -1,6 +1,6 @@
 # PlayStation 1 Blender Exporter
 
-A Blender 4.0 addon that exports 3D models and animation data to C header files compatible with Sony's PSY-Q SDK for PlayStation 1 development.
+A Blender 4.0 addon that exports 3D models and animation data to C header files compatible with Sony's PSY-Q SDK or PsyQo/Nugget for PlayStation 1 development.
 
 ## Features
 
@@ -25,6 +25,7 @@ A Blender 4.0 addon that exports 3D models and animation data to C header files 
    - **Convert to Z-up** - Converts Blender's Y-up to PS1's Z-up coordinate system
    - **Force Unlit** - Disable lighting calculations for all faces
    - **Export Animations** - Export all actions as separate animation files
+   - **Header Type** - This will format the headers depending on the sdk you are using
 4. Click Export
 
 ## Export Options
@@ -106,37 +107,17 @@ The exporter uses a scale factor of **3072** to convert Blender units to PS1 fix
 
 1. Assign materials with Image Texture nodes in Blender
 2. Export the model (texture filenames are captured)
-3. Convert textures to TIM format:
+3. Convert textures to TIM format (see tools folder):
    ```bash
-   img2tim -bpp 8 -o texture.tim texture.png
-   bin2c texture.tim texture_tim.h texture_tim
+   .\png2tim-main\png2tim.exe -p 320 0 texture.png
+   python bin2header.py texture.tim texture.h texture_tim
    ```
-4. Include and load in your PSY-Q project
+4. Include and load in your project, see the example folder for working examples of an animated model
 
-## PSY-Q Integration Example
-
-```c
-#include "model.h"
-#include "model-Walk.h"
-#include "texture_tim.h"
-
-// Load texture
-OpenTIM((u_long*)texture_tim);
-ReadTIM(&tim);
-LoadImage(tim.prect, tim.paddr);
-
-// Render static model
-for (i = 0; i < FACES_COUNT; i++) {
-    otz = RotAverage4(&vertices[quad_faces[i][0]], ...);
-    // Set UVs, texture, add to OT, etc.
-}
-
-// Render animated model
-renderModel(Walk_anim[current_frame]);
-```
 
 ## Requirements
 
 - Blender 4.0
-- PSY-Q SDK
-- img2tim for texture conversion, bin2c also if you want to use C headers for your textures rather than CD read file.
+- PSY-Q or PsyQo/Nugget SDK
+- png2tim for image conversion to the TIM format
+- bin2header.py, bin2c, or similar header conversion tool for rendering textured models.
