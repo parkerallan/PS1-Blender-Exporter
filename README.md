@@ -8,7 +8,9 @@ A Blender 4.0 addon that exports 3D models and animation data to C header files 
 - **Animation export** - Bakes vertex animations to per-frame data
 - **Vertex color support** - Exports per-corner colors as CVECTOR
 - **Material flags** - Tracks lit/unlit, textured, smooth/flat, and vertex color states per face
-- **Automatic triangulation** - Converts n-gons to tris/quads (PS1 only supports 3-4 sided polygons)
+- **Automatic triangulation** - Converts n-gons to tris/quads (PS1 only supports 3-4 sided polygons)  
+
+<img width="1226" height="942" alt="Screenshot 2026-01-10 124122" src="https://github.com/user-attachments/assets/57d44c12-bf90-4601-ae0e-88db7622bb51" />
 
 ## Installation
 
@@ -109,12 +111,12 @@ The exporter uses a scale factor of **3072** to convert Blender units to PS1 fix
 
 1. Assign materials with Image Texture nodes in Blender
 2. Export the model (texture filenames are captured)
-3. Convert textures to TIM format (see tools folder):
+3. Convert textures to TIM format and then C header (see tools folder):
    ```bash
-   .\png2tim-main\png2tim.exe -p 320 0 texture.png
+   .\png2tim.exe -p 320 0 texture.png
    python bin2header.py texture.tim texture.h texture_tim
    ```
-4. Include and load in your project, see the example folder for working examples of an animated model
+4. Include and load in your project, see the examples folder for working examples of an animated model
 
 
 ## Requirements
