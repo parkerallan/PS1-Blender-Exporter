@@ -2,10 +2,10 @@ TARGET = modelviewer
 TYPE = ps-exe
 
 SRCS = main.c \
-third_party/nugget/common/crt0/crt0.s \
+../../third_party/nugget/common/crt0/crt0.s \
 
-CPPFLAGS += -Ithird_party/psyq/include
-LDFLAGS += -Lthird_party/psyq/lib
+CPPFLAGS += -I../../third_party/psyq/include
+LDFLAGS += -L../../third_party/psyq/lib
 LDFLAGS += -Wl,--start-group
 LDFLAGS += -lapi
 LDFLAGS += -lc
@@ -30,4 +30,4 @@ LDFLAGS += -lspu
 LDFLAGS += -ltap
 LDFLAGS += -Wl,--end-group
 
-include third_party/nugget/common.mk
+include ../../third_party/nugget/common.mk

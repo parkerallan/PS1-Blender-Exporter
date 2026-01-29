@@ -1,7 +1,7 @@
 bl_info = {
     "name": "PlayStation 1 Exporter",
     "author": "parkerallan",
-    "version": (1, 0, 0),
+    "version": (1, 0, 1),
     "blender": (4, 0, 0),
     "location": "File > Export > PlayStation 1 (.h)",
     "description": "Exports models and animations to PlayStation 1 C header files with SVECTOR format",
@@ -147,9 +147,9 @@ def detect_material_properties(mesh, poly, force_unlit):
                     if node.image:
                         result['is_textured'] = True
                         result['texture_name'] = node.image.name
-                        # Get texture dimensions and subtract 0.85 for edge bleeding prevention
-                        result['texture_width'] = node.image.size[0] - 0.85
-                        result['texture_height'] = node.image.size[1] - 0.85
+                        # Get texture dimensions
+                        result['texture_width'] = node.image.size[0]
+                        result['texture_height'] = node.image.size[1]
     
     # Check vertex colors (now returns both colors and domain)
     vert_colors, color_domain = get_vertex_colors(mesh)
@@ -352,20 +352,20 @@ class ExportPS1(Operator, ExportHelper):
                         # UV 0
                         uv = uv_layer[poly.loop_start].uv
                         all_uvs.append({
-                            'u': int(uv.x * tex_width),
-                            'v': int(tex_height - (uv.y * tex_height))
+                            'u': round(uv.x * tex_width),
+                            'v': round(tex_height - (uv.y * tex_height))
                         })
                         # UV 2
                         uv = uv_layer[poly.loop_start + 2].uv
                         all_uvs.append({
-                            'u': int(uv.x * tex_width),
-                            'v': int(tex_height - (uv.y * tex_height))
+                            'u': round(uv.x * tex_width),
+                            'v': round(tex_height - (uv.y * tex_height))
                         })
                         # UV 1
                         uv = uv_layer[poly.loop_start + 1].uv
                         all_uvs.append({
-                            'u': int(uv.x * tex_width),
-                            'v': int(tex_height - (uv.y * tex_height))
+                            'u': round(uv.x * tex_width),
+                            'v': round(tex_height - (uv.y * tex_height))
                         })
                         uv_indices = [uv_offset, uv_offset + 1, uv_offset + 2]
                         uv_offset += 3
@@ -385,26 +385,26 @@ class ExportPS1(Operator, ExportHelper):
                         # UV 3
                         uv = uv_layer[poly.loop_start + 3].uv
                         all_uvs.append({
-                            'u': int(uv.x * tex_width),
-                            'v': int(tex_height - (uv.y * tex_height))
+                            'u': round(uv.x * tex_width),
+                            'v': round(tex_height - (uv.y * tex_height))
                         })
                         # UV 2
                         uv = uv_layer[poly.loop_start + 2].uv
                         all_uvs.append({
-                            'u': int(uv.x * tex_width),
-                            'v': int(tex_height - (uv.y * tex_height))
+                            'u': round(uv.x * tex_width),
+                            'v': round(tex_height - (uv.y * tex_height))
                         })
                         # UV 0
                         uv = uv_layer[poly.loop_start].uv
                         all_uvs.append({
-                            'u': int(uv.x * tex_width),
-                            'v': int(tex_height - (uv.y * tex_height))
+                            'u': round(uv.x * tex_width),
+                            'v': round(tex_height - (uv.y * tex_height))
                         })
                         # UV 1
                         uv = uv_layer[poly.loop_start + 1].uv
                         all_uvs.append({
-                            'u': int(uv.x * tex_width),
-                            'v': int(tex_height - (uv.y * tex_height))
+                            'u': round(uv.x * tex_width),
+                            'v': round(tex_height - (uv.y * tex_height))
                         })
                         uv_indices = [uv_offset, uv_offset + 1, uv_offset + 2, uv_offset + 3]
                         uv_offset += 4
