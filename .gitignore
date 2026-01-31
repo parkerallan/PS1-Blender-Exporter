@@ -8,3 +8,11 @@ env
 .gitmodules
 /png2tim-main
 ps1exporter.code-workspace
+__pycache__/
+*.o
+*.dep
+*.elf
+*.map
+*.ps-exe
+build/
+*.zip

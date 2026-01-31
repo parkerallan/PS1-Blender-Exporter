@@ -10,324 +10,206 @@
 #include <libetc.h>
 #include <libgpu.h>
 
+// Include subsystems
+#include "lib/display.h"
+#include "lib/lighting.h"
+#include "lib/input.h"
+#include "lib/texture.h"
+#include "lib/camera.h"
+#include "lib/animation.h"
+
 // Include model and animations
-#include "rika.h"
-#include "rika-idle.h"
-#include "rika-walk.h"
+#include "chardata/rika.h"
+#include "chardata/ground.h"
+#include "chardata/moon.h"
+#include "chardata/coin.h"
+#include "chardata/coin-spin.h"
+#include "chardata/star.h"
 
-// Include texture
-#include "rikatexture.h"
+// Include model rendering
+#include "lib/model.h"
 
-// Display settings
-#define SCREEN_WIDTH  320
-#define SCREEN_HEIGHT 240
-#define OT_LENGTH     4096
+// Model data for renderer
+ModelData rika_model;
+ModelData ground_model;
+ModelData moon_model;
+ModelData coin_model;
+ModelData star_model;
 
-// Triangle and quad counts from rika.h
-#define TRI_COUNT  200
-#define QUAD_COUNT 264
-
-// Double buffer structure
-typedef struct {
-    DRAWENV draw;
-    DISPENV disp;
-    u_long  ot[OT_LENGTH];
-} DoubleBuffer;
-
-DoubleBuffer db[2];
-DoubleBuffer *cdb;
-int currentBuffer = 0;
-
-// Primitive buffer (large enough for all primitives)
-char primbuff[2][131072];
-char *nextpri;
-
-// Controller
-u_long padState = 0;
-u_long padStateOld = 0;
-
-// Texture info
-TIM_IMAGE tim;
-u_short tpage = 0;
-u_short clut = 0;
-
-// Transform
-MATRIX world_matrix;
-SVECTOR rotation = {0, 0, 0};
-VECTOR translation = {0, 4000, 4000};
-VECTOR scale = {ONE, ONE, ONE};
-
-// Animation state
-int current_anim = 0;  // 0 = idle, 1 = walk
-int current_frame = 0;
-int frame_timer = 0;
-#define ANIM_SPEED 2  // Update every 2 vsyncs
-
-// Font stream ID
-int fontId = -1;
-
-// Get current animation frame count
-int getAnimFrameCount(void) {
-    if (current_anim == 0) {
-        return IDLE_FRAMES_COUNT;
-    } else {
-        return WALK_FRAMES_COUNT;
-    }
-}
-
-// Get current animation vertices
-SVECTOR* getCurrentAnimVerts(void) {
-    if (current_anim == 0) {
-        return idle_anim[current_frame];
-    } else {
-        return walk_anim[current_frame];
-    }
-}
+// Coin animation state
+int coin_frame = 0;
 
 //----------------------------------------------------------
-// Initialize display
+// Initialize model data structures
 //----------------------------------------------------------
-void initDisplay(void) {
-    ResetGraph(0);
+void initModels(void) {
+    // Setup model data structure
+    rika_model.tri_count = RIKA_TRI_COUNT;
+    rika_model.quad_count = RIKA_QUAD_COUNT;
+    rika_model.tri_faces = rika_tri_faces;
+    rika_model.tri_uvs = rika_tri_uvs;
+    rika_model.quad_faces = rika_quad_faces;
+    rika_model.quad_uvs = rika_quad_uvs;
+    rika_model.uvs = rika_uvs;
+    rika_model.normals = rika_normals;
+    rika_model.material_flags = rika_material_flags;
+    rika_model.vertex_colors = rika_vertex_colors;
+    rika_model.specular = NULL;  // Optional: set if exported with specular
+    rika_model.metallic = NULL;  // Optional: set if exported with metallic
     
-    // Buffer 0: draw at 0,0 - display from 0,240
-    SetDefDrawEnv(&db[0].draw, 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
-    SetDefDispEnv(&db[0].disp, 0, SCREEN_HEIGHT, SCREEN_WIDTH, SCREEN_HEIGHT);
+    // Setup ground model data structure
+    ground_model.tri_count = GROUND_TRI_COUNT;
+    ground_model.quad_count = GROUND_QUAD_COUNT;
+    ground_model.tri_faces = ground_tri_faces;
+    ground_model.tri_uvs = ground_tri_uvs;
+    ground_model.quad_faces = ground_quad_faces;
+    ground_model.quad_uvs = ground_quad_uvs;
+    ground_model.uvs = ground_uvs;
+    ground_model.normals = ground_normals;
+    ground_model.material_flags = ground_material_flags;
+    ground_model.vertex_colors = ground_vertex_colors;
+    ground_model.specular = NULL;  // Optional: set if exported with specular
+    ground_model.metallic = NULL;  // Optional: set if exported with metallic
     
-    // Buffer 1: draw at 0,240 - display from 0,0
-    SetDefDrawEnv(&db[1].draw, 0, SCREEN_HEIGHT, SCREEN_WIDTH, SCREEN_HEIGHT);
-    SetDefDispEnv(&db[1].disp, 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
+    // Setup moon model data structure
+    moon_model.tri_count = MOON_TRI_COUNT;
+    moon_model.quad_count = MOON_QUAD_COUNT;
+    moon_model.tri_faces = moon_tri_faces;
+    moon_model.tri_uvs = moon_tri_uvs;
+    moon_model.quad_faces = moon_quad_faces;
+    moon_model.quad_uvs = moon_quad_uvs;
+    moon_model.uvs = moon_uvs;
+    moon_model.normals = moon_normals;
+    moon_model.material_flags = moon_material_flags;
+    moon_model.vertex_colors = moon_vertex_colors;
+    moon_model.specular = NULL;  // Optional: set if exported with specular
+    moon_model.metallic = NULL;  // Optional: set if exported with metallic
     
-    // Set background color
-    db[0].draw.isbg = 1;
-    db[1].draw.isbg = 1;
-    setRGB0(&db[0].draw, 40, 60, 80);
-    setRGB0(&db[1].draw, 40, 60, 80);
+    // Setup coin model data structure (with metallic)
+    coin_model.tri_count = COIN_TRI_COUNT;
+    coin_model.quad_count = COIN_QUAD_COUNT;
+    coin_model.tri_faces = coin_tri_faces;
+    coin_model.tri_uvs = coin_tri_uvs;
+    coin_model.quad_faces = coin_quad_faces;
+    coin_model.quad_uvs = coin_quad_uvs;
+    coin_model.uvs = coin_uvs;
+    coin_model.normals = coin_normals;
+    coin_model.material_flags = coin_material_flags;
+    coin_model.vertex_colors = coin_vertex_colors;
+    coin_model.specular = NULL;
+    coin_model.metallic = coin_metallic;  // Coin uses metallic
     
-    // Initialize font for text display
-    FntLoad(960, 256);
-    fontId = FntOpen(16, 16, 288, 64, 0, 512);
-    
-    SetDispMask(1);
+    // Setup star model data structure (with specular)
+    star_model.tri_count = STAR_TRI_COUNT;
+    star_model.quad_count = STAR_QUAD_COUNT;
+    star_model.tri_faces = star_tri_faces;
+    star_model.tri_uvs = star_tri_uvs;
+    star_model.quad_faces = star_quad_faces;
+    star_model.quad_uvs = star_quad_uvs;
+    star_model.uvs = star_uvs;
+    star_model.normals = star_normals;
+    star_model.material_flags = star_material_flags;
+    star_model.vertex_colors = star_vertex_colors;
+    star_model.specular = star_specular;  // Star uses specular
+    star_model.metallic = NULL;
 }
 
 //----------------------------------------------------------
-// Initialize GTE (Geometry Transformation Engine)
+// Render all models
 //----------------------------------------------------------
-void initGTE(void) {
-    InitGeom();
-    SetGeomOffset(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2);
-    SetGeomScreen(SCREEN_WIDTH / 2);
-}
-
-//----------------------------------------------------------
-// Initialize controller
-//----------------------------------------------------------
-void initController(void) {
-    PadInit(0);  // Initialize controller system
-    padState = 0;
-    padStateOld = 0;
-}
-
-//----------------------------------------------------------
-// Load texture into VRAM
-//----------------------------------------------------------
-void loadTexture(void) {
-    OpenTIM((u_long*)rikatexture_tim);
-    ReadTIM(&tim);
+void renderScene(void) {
+    // Update and set view matrix
+    updateViewMatrix();
+    SetRotMatrix(&view_matrix);
+    SetTransMatrix(&view_matrix);
     
-    LoadImage(tim.prect, tim.paddr);
-    DrawSync(0);
+    // Render rika model at origin with view matrix
+    nextpri = renderModel(getCurrentAnimVerts(), &rika_model, nextpri, cdb->ot, OT_LENGTH, tpage, clut);
     
-    if (tim.mode & 0x8) {
-        LoadImage(tim.crect, tim.caddr);
-        DrawSync(0);
-        clut = getClut(tim.crect->x, tim.crect->y);
-    }
+    // Render ground plane positioned below rika
+    MATRIX ground_world_matrix;
+    SVECTOR ground_rot = {0, 0, 0};
+    VECTOR ground_pos = {0, 0, 0};
     
-    tpage = getTPage(tim.mode & 0x3, 0, tim.prect->x, tim.prect->y);
-}
-
-//----------------------------------------------------------
-// Update animation
-//----------------------------------------------------------
-void updateAnimation(void) {
-    frame_timer++;
-    if (frame_timer >= ANIM_SPEED) {
-        frame_timer = 0;
-        current_frame++;
-        if (current_frame >= getAnimFrameCount()) {
-            current_frame = 0;  // Loop
-        }
-    }
-}
-
-//----------------------------------------------------------
-// Handle input
-//----------------------------------------------------------
-void handleInput(void) {
-    padStateOld = padState;
-    padState = PadRead(0);  // Read pad 0 (first controller)
+    RotMatrix(&ground_rot, &ground_world_matrix);
+    TransMatrix(&ground_world_matrix, &ground_pos);
     
-    // Triangle button to switch animation
-    if ((padState & PADRup) && !(padStateOld & PADRup)) {
-        current_anim = !current_anim;
-        current_frame = 0;
-        frame_timer = 0;
-    }
+    // Compose with view matrix: result = view_matrix * ground_world_matrix
+    MATRIX ground_view_matrix;
+    CompMatrix(&view_matrix, &ground_world_matrix, &ground_view_matrix);
     
-    // D-pad left/right for Y rotation
-    if (padState & PADLleft) {
-        rotation.vy -= 32;
-    }
-    if (padState & PADLright) {
-        rotation.vy += 32;
-    }
+    SetRotMatrix(&ground_view_matrix);
+    SetTransMatrix(&ground_view_matrix);
     
-    // D-pad up/down for X rotation
-    if (padState & PADLup) {
-        rotation.vx -= 32;
-    }
-    if (padState & PADLdown) {
-        rotation.vx += 32;
-    }
+    nextpri = renderModel(ground_vertices, &ground_model, nextpri, cdb->ot, OT_LENGTH, tpage, clut);
     
-    // L1/R1 for zoom
-    if (padState & PADL1) {
-        translation.vz += 50;
-    }
-    if (padState & PADR1) {
-        translation.vz -= 50;
-    }
-
-    // L2/R2 for height
-    if (padState & PADL2) {
-        translation.vy += 50;
-    }
-    if (padState & PADR2) {
-        translation.vy -= 50;
-    }
-}
-
-//----------------------------------------------------------
-// Render triangles
-//----------------------------------------------------------
-void renderTriangles(SVECTOR *verts) {
-    int i;
-    long otz, p, flg;
-    POLY_FT3 *poly;
+    // Render moon plane positioned above rika
+    MATRIX moon_world_matrix;
+    SVECTOR moon_rot = {0, 0, 0};
+    VECTOR moon_pos = {0, 0, 0};  // Position moon in the sky
     
-    for (i = 0; i < TRI_COUNT; i++) {
-        poly = (POLY_FT3 *)nextpri;
-        setPolyFT3(poly);
-        
-        int v0 = tri_faces[i][0];
-        int v1 = tri_faces[i][1];
-        int v2 = tri_faces[i][2];
-        
-        otz = RotAverage3(
-            &verts[v0], &verts[v1], &verts[v2],
-            (long*)&poly->x0, (long*)&poly->x1, (long*)&poly->x2,
-            &p, &flg
-        );
-        
-        if (otz > 0 && otz < OT_LENGTH) {
-            // Set UVs
-            int uv0 = tri_uvs[i][0];
-            int uv1 = tri_uvs[i][1];
-            int uv2 = tri_uvs[i][2];
-            
-            setUV3(poly,
-                uvs[uv0].vx, uvs[uv0].vy,
-                uvs[uv1].vx, uvs[uv1].vy,
-                uvs[uv2].vx, uvs[uv2].vy
-            );
-            
-            poly->tpage = tpage;
-            poly->clut = clut;
-            setRGB0(poly, 128, 128, 128);
-            
-            addPrim(&cdb->ot[otz], poly);
-            nextpri += sizeof(POLY_FT3);
-        }
-    }
-}
-
-//----------------------------------------------------------
-// Render quads
-//----------------------------------------------------------
-void renderQuads(SVECTOR *verts) {
-    int i;
-    long otz, p, flg;
-    POLY_FT4 *poly;
+    RotMatrix(&moon_rot, &moon_world_matrix);
+    TransMatrix(&moon_world_matrix, &moon_pos);
     
-    for (i = 0; i < QUAD_COUNT; i++) {
-        poly = (POLY_FT4 *)nextpri;
-        setPolyFT4(poly);
-        
-        int v0 = quad_faces[i][0];
-        int v1 = quad_faces[i][1];
-        int v2 = quad_faces[i][2];
-        int v3 = quad_faces[i][3];
-        
-        otz = RotAverage4(
-            &verts[v0], &verts[v1], &verts[v2], &verts[v3],
-            (long*)&poly->x0, (long*)&poly->x1,
-            (long*)&poly->x2, (long*)&poly->x3,
-            &p, &flg
-        );
-        
-        if (otz > 0 && otz < OT_LENGTH) {
-            // Set UVs
-            int uv0 = quad_uvs[i][0];
-            int uv1 = quad_uvs[i][1];
-            int uv2 = quad_uvs[i][2];
-            int uv3 = quad_uvs[i][3];
-            
-            setUV4(poly,
-                uvs[uv0].vx, uvs[uv0].vy,
-                uvs[uv1].vx, uvs[uv1].vy,
-                uvs[uv2].vx, uvs[uv2].vy,
-                uvs[uv3].vx, uvs[uv3].vy
-            );
-            
-            poly->tpage = tpage;
-            poly->clut = clut;
-            setRGB0(poly, 128, 128, 128);
-            
-            addPrim(&cdb->ot[otz], poly);
-            nextpri += sizeof(POLY_FT4);
-        }
-    }
-}
-
-//----------------------------------------------------------
-// Render the model
-//----------------------------------------------------------
-void renderModel(SVECTOR *verts) {
-    // Build transformation matrix
-    RotMatrix(&rotation, &world_matrix);
-    TransMatrix(&world_matrix, &translation);
-    ScaleMatrix(&world_matrix, &scale);
+    // Compose with view matrix: result = view_matrix * moon_world_matrix
+    MATRIX moon_view_matrix;
+    CompMatrix(&view_matrix, &moon_world_matrix, &moon_view_matrix);
     
-    // Set as current GTE matrix
-    SetRotMatrix(&world_matrix);
-    SetTransMatrix(&world_matrix);
+    SetRotMatrix(&moon_view_matrix);
+    SetTransMatrix(&moon_view_matrix);
     
-    // Render all primitives
-    renderTriangles(verts);
-    renderQuads(verts);
+    nextpri = renderModel(moon_vertices, &moon_model, nextpri, cdb->ot, OT_LENGTH, moon_tpage, moon_clut);
+    
+    // Render coin with spin animation to the left of rika
+    MATRIX coin_world_matrix;
+    SVECTOR coin_rot = {0, 0, 0};
+    VECTOR coin_pos = {-3000, -2000, 0};  // Left of rika
+    
+    RotMatrix(&coin_rot, &coin_world_matrix);
+    TransMatrix(&coin_world_matrix, &coin_pos);
+    
+    MATRIX coin_view_matrix;
+    CompMatrix(&view_matrix, &coin_world_matrix, &coin_view_matrix);
+    
+    SetRotMatrix(&coin_view_matrix);
+    SetTransMatrix(&coin_view_matrix);
+    
+    // Get current coin animation frame
+    SVECTOR *coin_verts = spin_anim[coin_frame];
+    nextpri = renderModel(coin_verts, &coin_model, nextpri, cdb->ot, OT_LENGTH, coin_tpage, coin_clut);
+    
+    // Update coin animation frame
+    coin_frame = (coin_frame + 1) % SPIN_FRAMES_COUNT;
+    
+    // Render star to the right of rika
+    MATRIX star_world_matrix;
+    SVECTOR star_rot = {0, 0, 0};
+    VECTOR star_pos = {3000, -2000, 0};  // Right of rika
+    
+    RotMatrix(&star_rot, &star_world_matrix);
+    TransMatrix(&star_world_matrix, &star_pos);
+    
+    MATRIX star_view_matrix;
+    CompMatrix(&view_matrix, &star_world_matrix, &star_view_matrix);
+    
+    SetRotMatrix(&star_view_matrix);
+    SetTransMatrix(&star_view_matrix);
+    
+    nextpri = renderModel(star_vertices, &star_model, nextpri, cdb->ot, OT_LENGTH, star_tpage, star_clut);
 }
 
 //----------------------------------------------------------
 // Main function
 //----------------------------------------------------------
 int main(void) {
-    // Initialize everything
+    // Initialize all systems
     initDisplay();
     initGTE();
     initController();
+    initCamera();
+    initAnimation();
     loadTexture();
+    initModels();
     
     // Main loop
     while (1) {
@@ -338,22 +220,19 @@ int main(void) {
         updateAnimation();
         
         // Swap double buffer
-        currentBuffer = !currentBuffer;
-        cdb = &db[currentBuffer];
+        swapBuffers();
         
         // Clear ordering table
         ClearOTagR(cdb->ot, OT_LENGTH);
         
-        // Reset primitive buffer
-        nextpri = primbuff[currentBuffer];
-        
         // Display animation state
         FntPrint(fontId, "Animation: %s\n", current_anim == 0 ? "IDLE" : "WALK");
         FntPrint(fontId, "Frame: %d/%d\n", current_frame, getAnimFrameCount());
+        FntPrint(fontId, "Camera: X=%d Y=%d Z=%d\n", camera_position.vx, camera_position.vy, camera_position.vz);
         FntFlush(fontId);
         
-        // Render model with current animation frame
-        renderModel(getCurrentAnimVerts());
+        // Render scene
+        renderScene();
         
         // Wait for GPU and VSync
         DrawSync(0);

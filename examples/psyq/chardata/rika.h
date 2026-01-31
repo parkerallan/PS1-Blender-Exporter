@@ -9,13 +9,24 @@
 #include <sys/types.h>
 #include <libgte.h>
 
-#define VERTICES_COUNT 433
-#define UVS_COUNT 1656
-#define FACES_COUNT 464
-#define PS1_SCALE 3072
+#define RIKA_VERTICES_COUNT 433
+#define RIKA_UVS_COUNT 1656
+#define RIKA_FACES_COUNT 464
+#define RIKA_TRI_COUNT 200
+#define RIKA_QUAD_COUNT 264
+#define RIKA_PS1_SCALE 3072
+
+// Material flag bit definitions
+#define MAT_FLAG_UNLIT        (1 << 0)
+#define MAT_FLAG_TEXTURED     (1 << 1)
+#define MAT_FLAG_SMOOTH       (1 << 2)
+#define MAT_FLAG_VERTEX_COLOR (1 << 3)
+#define MAT_FLAG_ALPHA        (1 << 4)
+#define MAT_FLAG_DOUBLE_SIDED (1 << 5)
+#define MAT_FLAG_CUTOUT       (1 << 6)
 
 // Vertices (fixed-point, scaled by 3072)
-SVECTOR vertices[VERTICES_COUNT] = {
+SVECTOR rika_vertices[RIKA_VERTICES_COUNT] = {
     { 79, -4382, 137 },
     { 99, -4289, -64 },
     { 0, -3736, -312 },
@@ -451,13 +462,450 @@ SVECTOR vertices[VERTICES_COUNT] = {
     { -354, -1312, -31 },
 };
 
+// Normals (for lighting calculations)
+SVECTOR rika_normals[RIKA_VERTICES_COUNT] = {
+    { 1755, -2683, 2547 },
+    { 1001, -3081, -2506 },
+    { 0, -191, -4091 },
+    { 0, -332, 4082 },
+    { 0, -1329, 3874 },
+    { 0, -2552, -3203 },
+    { 0, -845, 4007 },
+    { 0, -217, -4090 },
+    { 0, -233, -4089 },
+    { 0, -739, 4028 },
+    { 0, -1408, 3846 },
+    { 2152, 69, 3483 },
+    { 3554, -65, -2034 },
+    { 3993, 365, 836 },
+    { 1494, -287, -3802 },
+    { 3907, -642, 1046 },
+    { 3490, -477, -2089 },
+    { 3460, -186, -2182 },
+    { 1473, -1133, -3649 },
+    { 2268, -782, 3319 },
+    { 1785, -239, -3678 },
+    { 1452, -229, -3822 },
+    { 931, -270, 3979 },
+    { 2426, -652, 3234 },
+    { 3741, -672, 1526 },
+    { 606, -2568, -3132 },
+    { 1014, -2285, 3244 },
+    { 2458, 34, 3275 },
+    { 859, -3882, -984 },
+    { 1913, -1934, -3061 },
+    { 1162, -2778, 2776 },
+    { 1566, -3709, -747 },
+    { 3659, -406, -1794 },
+    { 4058, 389, -393 },
+    { 3662, 651, -1713 },
+    { 0, -1325, -3875 },
+    { 3755, -960, 1322 },
+    { 0, -325, -4083 },
+    { 1694, -374, -3710 },
+    { 3610, -643, -1823 },
+    { 0, -1240, 3903 },
+    { 2319, -1099, 3191 },
+    { 1369, -805, 3775 },
+    { 1265, -1178, 3713 },
+    { 1126, -676, 3879 },
+    { 2394, -1130, -3125 },
+    { 1179, -2603, 2934 },
+    { 1099, -2578, -2986 },
+    { 860, -3921, -814 },
+    { 2143, 410, 3466 },
+    { 3745, 728, 1488 },
+    { 3971, 642, -767 },
+    { 2392, -958, -3183 },
+    { 4054, 158, -556 },
+    { 3724, 635, -1580 },
+    { -1755, -2683, 2547 },
+    { -1001, -3081, -2506 },
+    { -2152, 69, 3483 },
+    { -3554, -65, -2034 },
+    { -3993, 365, 836 },
+    { -1494, -287, -3802 },
+    { -3907, -642, 1046 },
+    { -3490, -477, -2089 },
+    { -3460, -186, -2182 },
+    { -1473, -1133, -3649 },
+    { -2268, -782, 3319 },
+    { -1785, -239, -3678 },
+    { -1452, -229, -3822 },
+    { -931, -270, 3979 },
+    { -2426, -652, 3234 },
+    { -3741, -672, 1526 },
+    { -606, -2568, -3132 },
+    { -1014, -2285, 3244 },
+    { -2458, 34, 3275 },
+    { -859, -3882, -984 },
+    { -1913, -1934, -3061 },
+    { -1162, -2778, 2776 },
+    { -1566, -3709, -747 },
+    { -3659, -406, -1794 },
+    { -4058, 389, -393 },
+    { -3662, 651, -1713 },
+    { -3755, -960, 1322 },
+    { -1694, -374, -3710 },
+    { -3610, -643, -1823 },
+    { -2319, -1099, 3191 },
+    { -1369, -805, 3775 },
+    { -1265, -1178, 3713 },
+    { -1126, -676, 3879 },
+    { -2394, -1130, -3125 },
+    { -1179, -2603, 2934 },
+    { -1099, -2578, -2986 },
+    { -860, -3921, -814 },
+    { -2143, 410, 3466 },
+    { -3745, 728, 1488 },
+    { -3971, 642, -767 },
+    { -2392, -958, -3183 },
+    { -4054, 158, -556 },
+    { -3724, 635, -1580 },
+    { 2937, -2820, -438 },
+    { 3116, -2396, 1149 },
+    { 202, -3225, 2516 },
+    { 3450, -471, 2156 },
+    { -2888, -2494, 1488 },
+    { 2959, -1526, -2385 },
+    { 3983, -883, -355 },
+    { 4056, -269, 500 },
+    { 81, -625, 4047 },
+    { -146, -1523, -3799 },
+    { -3425, -375, 2213 },
+    { -3002, -1543, -2319 },
+    { -3998, 379, 801 },
+    { -3922, -1104, -412 },
+    { -3471, -2165, 182 },
+    { -714, -3819, -1296 },
+    { 2671, 2786, 1369 },
+    { 2461, 2830, -1644 },
+    { 2915, 2876, -71 },
+    { 2751, 3012, 362 },
+    { 18, 2785, 3002 },
+    { -170, 2842, -2944 },
+    { -2743, 2752, 1293 },
+    { -2468, 2879, -1546 },
+    { -2653, 3089, 440 },
+    { -2976, 2813, 80 },
+    { 248, -4088, -41 },
+    { -2937, -2820, -438 },
+    { -3116, -2396, 1149 },
+    { -202, -3225, 2516 },
+    { -3450, -471, 2156 },
+    { 2888, -2494, 1488 },
+    { -2959, -1526, -2385 },
+    { -3983, -883, -355 },
+    { -4056, -269, 500 },
+    { -81, -625, 4047 },
+    { 146, -1523, -3799 },
+    { 3425, -375, 2213 },
+    { 3002, -1543, -2319 },
+    { 3998, 379, 801 },
+    { 3922, -1104, -412 },
+    { 3471, -2165, 182 },
+    { 714, -3819, -1296 },
+    { -2671, 2786, 1369 },
+    { -2461, 2830, -1644 },
+    { -2915, 2876, -71 },
+    { -2751, 3012, 362 },
+    { -18, 2785, 3002 },
+    { 170, 2842, -2944 },
+    { 2743, 2752, 1293 },
+    { 2468, 2879, -1546 },
+    { 2653, 3089, 440 },
+    { 2976, 2813, 80 },
+    { -248, -4088, -41 },
+    { -3007, 723, 2684 },
+    { -2887, -2899, 179 },
+    { -2847, -1121, -2721 },
+    { -775, -4021, -64 },
+    { -850, -3052, 2594 },
+    { 432, -105, -4071 },
+    { -1611, 3623, -1025 },
+    { 1371, -1913, -3351 },
+    { -236, 3957, -1030 },
+    { 180, -4043, 627 },
+    { 582, -2533, 3165 },
+    { 50, 3520, 2092 },
+    { -54, 1542, 3793 },
+    { 4095, 14, -43 },
+    { 1824, 2450, 2728 },
+    { 1811, 3019, 2092 },
+    { 1328, -3856, 379 },
+    { 2185, 637, 3404 },
+    { 1424, -2702, 2728 },
+    { 1495, 322, -3799 },
+    { -1475, 3658, 1103 },
+    { -3998, 866, 205 },
+    { 3007, 723, 2684 },
+    { 2887, -2899, 179 },
+    { 2847, -1121, -2721 },
+    { 775, -4021, -64 },
+    { 850, -3052, 2594 },
+    { -432, -105, -4071 },
+    { 1611, 3623, -1025 },
+    { -1371, -1913, -3351 },
+    { 236, 3957, -1030 },
+    { -180, -4043, 627 },
+    { -582, -2533, 3165 },
+    { -50, 3520, 2092 },
+    { 54, 1542, 3793 },
+    { -4095, 14, -43 },
+    { -1824, 2450, 2728 },
+    { -1811, 3019, 2092 },
+    { -1328, -3856, 379 },
+    { -2185, 637, 3404 },
+    { -1424, -2702, 2728 },
+    { -1495, 322, -3799 },
+    { 1475, 3658, 1103 },
+    { 3998, 866, 205 },
+    { 0, 3850, 1396 },
+    { 0, 3155, 2612 },
+    { 0, 3573, -2001 },
+    { 0, -602, -4051 },
+    { 0, 708, -4034 },
+    { 0, -2988, -2801 },
+    { 0, 1223, -3908 },
+    { 0, -431, -4073 },
+    { 2676, -1862, -2478 },
+    { 1983, -831, -3485 },
+    { 1849, 3514, -1002 },
+    { 2539, -309, -3198 },
+    { 2604, 1339, -2863 },
+    { 2735, -650, -2978 },
+    { 3935, 965, -596 },
+    { 0, 845, 4007 },
+    { -2837, 2639, 1325 },
+    { 0, 2424, 3301 },
+    { 0, -2538, -3214 },
+    { 1266, 3175, 2256 },
+    { 1953, 3337, 1350 },
+    { 1235, 3640, 1411 },
+    { -1725, 3436, -1409 },
+    { 1897, 2692, -2435 },
+    { 3370, 381, -2295 },
+    { 3256, 2482, 104 },
+    { 3319, 2270, -777 },
+    { 3403, 534, -2215 },
+    { 2688, 261, -3078 },
+    { -242, 2288, 3388 },
+    { -232, 1209, -3906 },
+    { 0, -3753, -1639 },
+    { 0, -4062, -523 },
+    { 0, -2013, 3566 },
+    { 0, -3736, 1677 },
+    { 3670, -1811, -156 },
+    { 2238, -3130, 1401 },
+    { 2238, -3376, -602 },
+    { 2386, -349, 3310 },
+    { 3973, 861, -498 },
+    { 3843, 468, -1335 },
+    { 4003, -764, 408 },
+    { 2447, -1634, 2848 },
+    { -2258, 3213, -1161 },
+    { 2698, 2239, -2117 },
+    { -3542, -837, -1878 },
+    { -3413, -504, -2206 },
+    { 2533, -2817, -1555 },
+    { 0, -642, -4045 },
+    { 3623, -1123, -1544 },
+    { 2069, -527, -3495 },
+    { 2370, -1659, -2898 },
+    { 0, -1963, -3594 },
+    { 695, 866, 3942 },
+    { 3841, 840, -1146 },
+    { 3641, -279, -1853 },
+    { -2676, -1862, -2478 },
+    { -1983, -831, -3485 },
+    { -1849, 3514, -1002 },
+    { -2539, -309, -3198 },
+    { -2604, 1339, -2863 },
+    { -2735, -650, -2978 },
+    { -3935, 965, -596 },
+    { 2837, 2639, 1325 },
+    { -1266, 3175, 2256 },
+    { -1953, 3337, 1350 },
+    { -1235, 3640, 1411 },
+    { 1725, 3436, -1409 },
+    { -1897, 2692, -2435 },
+    { -3370, 381, -2295 },
+    { -3256, 2482, 104 },
+    { -3319, 2270, -777 },
+    { -3403, 534, -2215 },
+    { -2688, 261, -3078 },
+    { 242, 2288, 3388 },
+    { 232, 1209, -3906 },
+    { -3670, -1811, -156 },
+    { -2238, -3130, 1401 },
+    { -2238, -3376, -602 },
+    { -2386, -349, 3310 },
+    { -3973, 861, -498 },
+    { -3843, 468, -1335 },
+    { -4003, -764, 408 },
+    { -2447, -1634, 2848 },
+    { 2258, 3213, -1161 },
+    { -2698, 2239, -2117 },
+    { 3542, -837, -1878 },
+    { 3413, -504, -2206 },
+    { -2533, -2817, -1555 },
+    { -3623, -1123, -1544 },
+    { -2069, -527, -3495 },
+    { -2370, -1659, -2898 },
+    { -695, 866, 3942 },
+    { -3841, 840, -1146 },
+    { -3641, -279, -1853 },
+    { 122, -4093, -85 },
+    { 342, 1408, 3831 },
+    { 171, 4059, 514 },
+    { 149, -2098, -3514 },
+    { 136, 2890, -2898 },
+    { 196, 1778, 3684 },
+    { 234, -3801, 1506 },
+    { 292, -1648, -3738 },
+    { 284, 3296, -2414 },
+    { 331, 4014, 739 },
+    { 117, -2929, 2860 },
+    { -1912, -3618, -160 },
+    { -1945, 3601, 145 },
+    { -1899, -1881, -3102 },
+    { -1909, 2438, -2680 },
+    { -1855, 1868, 3137 },
+    { -1895, -2418, 2709 },
+    { -4095, -30, -43 },
+    { -122, -4093, -85 },
+    { -342, 1408, 3831 },
+    { -171, 4059, 514 },
+    { -149, -2098, -3514 },
+    { -136, 2890, -2898 },
+    { -196, 1778, 3684 },
+    { -234, -3801, 1506 },
+    { -292, -1648, -3738 },
+    { -284, 3296, -2414 },
+    { -331, 4014, 739 },
+    { -117, -2929, 2860 },
+    { 1912, -3618, -160 },
+    { 1945, 3601, 145 },
+    { 1899, -1881, -3102 },
+    { 1909, 2438, -2680 },
+    { 1855, 1868, 3137 },
+    { 1895, -2418, 2709 },
+    { 4095, -30, -43 },
+    { 3373, 444, -2280 },
+    { 1184, -2197, 3247 },
+    { -1553, -2187, 3094 },
+    { 3914, 81, 1202 },
+    { 1444, 9, 3832 },
+    { -2676, 110, 3098 },
+    { 3384, -1829, -1405 },
+    { -3426, -1881, 1223 },
+    { -3429, -1686, -1473 },
+    { 1691, -1691, -3324 },
+    { -2406, -50, 3314 },
+    { -1228, -1785, -3475 },
+    { 1549, -154, 3788 },
+    { 3391, -1972, 1174 },
+    { -4061, 404, -341 },
+    { -1242, 655, -3847 },
+    { -122, -4093, -54 },
+    { -3373, 444, -2280 },
+    { -1184, -2197, 3247 },
+    { 1553, -2187, 3094 },
+    { -3914, 81, 1202 },
+    { -1444, 9, 3832 },
+    { 2676, 110, 3098 },
+    { -3384, -1829, -1405 },
+    { 3426, -1881, 1223 },
+    { 3429, -1686, -1473 },
+    { -1691, -1691, -3324 },
+    { 2406, -50, 3314 },
+    { 1228, -1785, -3475 },
+    { -1549, -154, 3788 },
+    { -3391, -1972, 1174 },
+    { 4061, 404, -341 },
+    { 1242, 655, -3847 },
+    { 122, -4093, -54 },
+    { 0, -161, -4092 },
+    { 0, -726, 4031 },
+    { 2808, -413, 2952 },
+    { 2543, -143, -3207 },
+    { 0, -726, 4031 },
+    { 0, -161, -4092 },
+    { 4093, -66, -119 },
+    { 2747, -428, 3007 },
+    { 4070, -54, 454 },
+    { 3258, -126, -2479 },
+    { -2808, -413, 2952 },
+    { -2543, -143, -3207 },
+    { -4093, -66, -119 },
+    { -2747, -428, 3007 },
+    { -4070, -54, 454 },
+    { -3258, -126, -2479 },
+    { -1894, 1867, 3114 },
+    { -1824, -3599, -702 },
+    { -1912, -1061, -3463 },
+    { -1847, -2431, 2730 },
+    { -1847, 3654, 91 },
+    { -1782, 2620, -2594 },
+    { 38, -4030, -729 },
+    { 57, 4094, 83 },
+    { 53, -1520, -3802 },
+    { 84, 2820, -2969 },
+    { 64, 2108, 3510 },
+    { 74, -2800, 2987 },
+    { -4091, -10, -191 },
+    { 1894, 1867, 3114 },
+    { 1824, -3599, -702 },
+    { 1912, -1061, -3463 },
+    { 1847, -2431, 2730 },
+    { 1847, 3654, 91 },
+    { 1782, 2620, -2594 },
+    { -38, -4030, -729 },
+    { -57, 4094, 83 },
+    { -53, -1520, -3802 },
+    { -84, 2820, -2969 },
+    { -64, 2108, 3510 },
+    { -74, -2800, 2987 },
+    { 4091, -10, -191 },
+    { -1301, 589, 3838 },
+    { 1808, 535, 3635 },
+    { -34, -41, -4095 },
+    { -3670, 417, 1768 },
+    { -3693, 83, -1767 },
+    { 3723, 137, -1701 },
+    { 3874, 367, 1276 },
+    { 1837, 534, 3621 },
+    { -1371, 589, 3814 },
+    { 3646, 119, -1862 },
+    { -3784, 388, 1516 },
+    { -3656, 78, -1843 },
+    { 1386, -7, -3854 },
+    { -1508, 8, -3807 },
+    { 3892, 364, 1222 },
+    { 1301, 589, 3838 },
+    { -1808, 535, 3635 },
+    { 34, -41, -4095 },
+    { 3670, 417, 1768 },
+    { 3693, 83, -1767 },
+    { -3723, 137, -1701 },
+    { -3874, 367, 1276 },
+    { -1837, 534, 3621 },
+    { 1371, 589, 3814 },
+    { -3646, 119, -1862 },
+    { 3784, 388, 1516 },
+    { 3656, 78, -1843 },
+    { -1386, -7, -3854 },
+    { 1508, 8, -3807 },
+    { -3892, 364, 1222 },
+};
+
 // Texture references
-#define TEXTURE_COUNT 1
-#define TEXTURE_0_NAME "rikatexture"
-#define TEXTURE_RIKATEXTURE 0
+#define RIKA_TEXTURE_COUNT 1
+#define RIKA_TEXTURE_0_NAME "rikatexture"
+#define RIKA_TEXTURE_RIKATEXTURE 0
 
 // UV Coordinates
-SVECTOR uvs[UVS_COUNT] = {
+SVECTOR rika_uvs[RIKA_UVS_COUNT] = {
     { 19, 137, 0 },
     { 19, 144, 0 },
     { 6, 135, 0 },
@@ -2117,7 +2565,7 @@ SVECTOR uvs[UVS_COUNT] = {
 };
 
 // Faces
-int tri_faces[200][3] = {
+int rika_tri_faces[200][3] = {
     { 25, 5, 1 },
     { 12, 18, 45 },
     { 25, 1, 31 },
@@ -2320,7 +2768,7 @@ int tri_faces[200][3] = {
     { 431, 430, 420 },
 };
 
-int tri_uvs[200][3] = {
+int rika_tri_uvs[200][3] = {
     { 4, 5, 6 },
     { 11, 12, 13 },
     { 14, 15, 16 },
@@ -2523,7 +2971,7 @@ int tri_uvs[200][3] = {
     { 1633, 1634, 1635 },
 };
 
-int quad_faces[264][4] = {
+int rika_quad_faces[264][4] = {
     { 39, 36, 32, 24 },
     { 17, 16, 21, 14 },
     { 9, 44, 3, 22 },
@@ -2790,7 +3238,7 @@ int quad_faces[264][4] = {
     { 427, 432, 423, 424 },
 };
 
-int quad_uvs[264][4] = {
+int rika_quad_uvs[264][4] = {
     { 0, 1, 2, 3 },
     { 7, 8, 9, 10 },
     { 23, 24, 25, 26 },
@@ -3057,941 +3505,477 @@ int quad_uvs[264][4] = {
     { 1652, 1653, 1654, 1655 },
 };
 
-// Per-face texture index (-1 = no texture)
-signed char face_texture_idx[FACES_COUNT] = {
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
+unsigned char rika_material_flags[RIKA_FACES_COUNT] = {
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
+    0b00100110,  // lit, textured, smooth, double-sided
 };
 
-// Material flags
-// Bit 0: unlit, Bit 1: textured, Bit 2: smooth, Bit 3: vertex colors
-unsigned char material_flags[FACES_COUNT] = {
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
-    0b00000110,  // lit, textured, smooth
+// Vertex Colors
+#define RIKA_VERTEX_COLORS_COUNT 1
+CVECTOR rika_vertex_colors[RIKA_VERTEX_COLORS_COUNT] = {
+    { 128, 128, 128, 0 }  // Default gray
 };
 
 #endif

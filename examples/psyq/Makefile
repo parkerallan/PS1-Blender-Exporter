@@ -1,10 +1,19 @@
 TARGET = modelviewer
 TYPE = ps-exe
+BINDIR = build/
 
 SRCS = main.c \
-../../third_party/nugget/common/crt0/crt0.s \
+lib/model.c \
+lib/display.c \
+lib/lighting.c \
+lib/input.c \
+lib/texture.c \
+lib/camera.c \
+lib/animation.c \
+../../third_party/nugget/common/crt0/crt0.s
 
 CPPFLAGS += -I../../third_party/psyq/include
+CPPFLAGS += -I.
 LDFLAGS += -L../../third_party/psyq/lib
 LDFLAGS += -Wl,--start-group
 LDFLAGS += -lapi
@@ -30,4 +39,11 @@ LDFLAGS += -lspu
 LDFLAGS += -ltap
 LDFLAGS += -Wl,--end-group
 
+# Tell make where to find source files
+VPATH = .:lib
+
 include ../../third_party/nugget/common.mk
+
+# Also clean .dep files from build directory
+clean::
+	rm -f build/*.dep

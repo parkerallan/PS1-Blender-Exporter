@@ -1,7 +1,7 @@
 bl_info = {
     "name": "PlayStation 1 Exporter",
     "author": "parkerallan",
-    "version": (1, 0, 1),
+    "version": (1, 1, 2),
     "blender": (4, 0, 0),
     "location": "File > Export > PlayStation 1 (.h)",
     "description": "Exports models and animations to PlayStation 1 C header files with SVECTOR format",
@@ -123,8 +123,8 @@ def is_solid_white(poly, vert_colors, color_domain, mesh):
             return False
     return True
 
-def detect_material_properties(mesh, poly, force_unlit):
-    """Detect material properties: lit/unlit, textured, vertex colors, smooth/flat"""
+def detect_material_properties(mesh, poly, enable_unlit, enable_specular, enable_metallic):
+    """Detect material properties: lit/unlit, textured, vertex colors, smooth/flat, alpha, specular, metallic"""
     result = {
         'is_lit': True,
         'is_textured': False,
@@ -134,15 +134,42 @@ def detect_material_properties(mesh, poly, force_unlit):
         'texture_index': -1,  # Index into texture list, -1 = no texture
         'texture_width': 255,  # Default if no texture
         'texture_height': 255,
-        'is_emission': False
+        'is_emission': False,
+        'has_alpha': False,  # Texture has alpha channel
+        'has_cutout': False,  # Sharp cutout transparency using mask bit
+        'specular': 0.5,  # Default specular value (0-1.0)
+        'metallic': 0.0  # Default metallic value
     }
     
     # Check material
     if poly.material_index < len(mesh.materials):
         mat = mesh.materials[poly.material_index]
+        
         if mat and mat.node_tree:
-            # Check for texture and get dimensions
+            # Check for Principled BSDF to get specular and metallic values
             for node in mat.node_tree.nodes:
+                if node.type == 'BSDF_PRINCIPLED':
+                    # Get specular value if enabled (0.0 to 1.0 range in Blender 4.0)
+                    if enable_specular:
+                        # Blender 4.0 uses "Specular IOR Level"
+                        for input_name in ['Specular IOR Level', 'Specular', 'Specular IOR']:
+                            if input_name in node.inputs:
+                                try:
+                                    value = node.inputs[input_name].default_value
+                                    result['specular'] = float(value)
+                                    break
+                                except Exception as e:
+                                    pass
+                    
+                    # Get metallic value if enabled
+                    if enable_metallic:
+                        if 'Metallic' in node.inputs:
+                            try:
+                                result['metallic'] = float(node.inputs['Metallic'].default_value)
+                            except:
+                                pass
+                
+                # Check for texture and get dimensions
                 if node.type in ['TEX_IMAGE', 'ShaderNodeTexImage']:
                     if node.image:
                         result['is_textured'] = True
@@ -150,14 +177,18 @@ def detect_material_properties(mesh, poly, force_unlit):
                         # Get texture dimensions
                         result['texture_width'] = node.image.size[0]
                         result['texture_height'] = node.image.size[1]
+                        
+                        # Check if texture has alpha channel
+                        if node.image.channels == 4 or (hasattr(node.image, 'alpha_mode') and node.image.alpha_mode != 'NONE'):
+                            result['has_alpha'] = True
     
     # Check vertex colors (now returns both colors and domain)
     vert_colors, color_domain = get_vertex_colors(mesh)
     if vert_colors and color_domain and not is_solid_white(poly, vert_colors, color_domain, mesh):
         result['has_vertex_colors'] = True
     
-    # Only set unlit if force_unlit is checked
-    if force_unlit:
+    # Only set unlit if enable_unlit is checked
+    if enable_unlit:
         result['is_lit'] = False
     
     return result
@@ -181,9 +212,33 @@ class ExportPS1(Operator, ExportHelper):
         default=True
     )
     
-    force_unlit: BoolProperty(
-        name="Force Unlit",
+    enable_unlit: BoolProperty(
+        name="Enable Unlit",
         description="Export all polygons as unlit (disable lighting calculations)",
+        default=False
+    )
+    
+    enable_semi_transparency: BoolProperty(
+        name="Enable Semi-Transparency",
+        description="Enable semi-transparency for materials with alpha channels",
+        default=False
+    )
+    
+    enable_cutout_transparency: BoolProperty(
+        name="Enable Cutout Transparency",
+        description="Enable sharp cutout transparency using mask bit (bit 15) for textures with alpha",
+        default=False
+    )
+    
+    enable_specular: BoolProperty(
+        name="Enable Specular",
+        description="Export specular IOR values from Principled BSDF for specular highlights",
+        default=False
+    )
+    
+    enable_metallic: BoolProperty(
+        name="Enable Metallic",
+        description="Export metallic values from Principled BSDF for metallic materials",
         default=False
     )
     
@@ -207,7 +262,11 @@ class ExportPS1(Operator, ExportHelper):
         layout = self.layout
         layout.label(text="Export options:")
         layout.prop(self, "convert_coords")
-        layout.prop(self, "force_unlit")
+        layout.prop(self, "enable_unlit")
+        layout.prop(self, "enable_semi_transparency")
+        layout.prop(self, "enable_cutout_transparency")
+        layout.prop(self, "enable_specular")
+        layout.prop(self, "enable_metallic")
         layout.prop(self, "export_animations")
         layout.label(text="Header Type:")
         layout.prop(self, "header_type", text="")
@@ -257,6 +316,7 @@ class ExportPS1(Operator, ExportHelper):
     def export_model(self, mesh_objects, filepath, base_name):
         """Export main model geometry to C header file"""
         all_vertices = []
+        all_normals = []  # Vertex normals for lighting
         all_uvs = []
         all_faces = []
         all_materials = []
@@ -292,6 +352,15 @@ class ExportPS1(Operator, ExportHelper):
                     'z': int(coord[2] * PS1_SCALE_FACTOR)
                 })
                 
+                # Extract vertex normal (apply rotation, normalize to ONE=4096)
+                world_normal = (world_matrix.to_3x3() @ vert.normal).normalized()
+                normal_coord = convert_coordinate(world_normal, self.convert_coords)
+                all_normals.append({
+                    'x': int(normal_coord[0] * 4096),
+                    'y': int(normal_coord[1] * 4096),
+                    'z': int(normal_coord[2] * 4096)
+                })
+                
                 # Extract vertex color for this vertex (if domain is VERTEX)
                 if vert_colors and color_domain == 'VERTEX':
                     if vert_idx < len(vert_colors):
@@ -323,7 +392,7 @@ class ExportPS1(Operator, ExportHelper):
             
             # Extract faces and materials
             for poly in mesh.polygons:
-                mat_props = detect_material_properties(mesh, poly, self.force_unlit)
+                mat_props = detect_material_properties(mesh, poly, self.enable_unlit, self.enable_specular, self.enable_metallic)
                 
                 # Assign texture index
                 if mat_props['texture_name']:
@@ -421,11 +490,13 @@ class ExportPS1(Operator, ExportHelper):
             vertex_offset += len(mesh.vertices)
         
         # Write C header file
-        self.write_header_file(filepath, base_name, all_vertices, all_uvs, all_faces, all_materials, texture_names, all_vertex_colors, has_any_vertex_colors)
+        self.write_header_file(filepath, base_name, all_vertices, all_normals, all_uvs, all_faces, all_materials, texture_names, all_vertex_colors, has_any_vertex_colors, self.enable_semi_transparency, self.enable_cutout_transparency)
     
-    def write_header_file(self, filepath, base_name, vertices, uvs, faces, materials, texture_names, vertex_colors, has_vertex_colors):
+    def write_header_file(self, filepath, base_name, vertices, normals, uvs, faces, materials, texture_names, vertex_colors, has_vertex_colors, enable_semi_transparency, enable_cutout_transparency):
         """Write C header file"""
         guard_name = base_name.upper().replace('-', '_').replace(' ', '_')
+        prefix = base_name.lower().replace('-', '_').replace(' ', '_')
+        prefix_upper = prefix.upper()
         
         # Choose includes and type definitions based on header type
         if self.header_type == 'PSYQO':
@@ -441,6 +512,9 @@ typedef struct {
             includes = """#include <sys/types.h>
 #include <libgte.h>"""
         
+        tri_count = sum(1 for f in faces if f['is_tri'])
+        quad_count = len(faces) - tri_count
+        
         content = f"""// PlayStation 1 Model Export
 // Generated by PS1 Exporter for Blender 4.0
 // Model: {base_name}
@@ -451,13 +525,15 @@ typedef struct {
 
 {includes}
 
-#define VERTICES_COUNT {len(vertices)}
-#define UVS_COUNT {len(uvs)}
-#define FACES_COUNT {len(faces)}
-#define PS1_SCALE {PS1_SCALE_FACTOR}
+#define {prefix_upper}_VERTICES_COUNT {len(vertices)}
+#define {prefix_upper}_UVS_COUNT {len(uvs)}
+#define {prefix_upper}_FACES_COUNT {len(faces)}
+#define {prefix_upper}_TRI_COUNT {tri_count}
+#define {prefix_upper}_QUAD_COUNT {quad_count}
+#define {prefix_upper}_PS1_SCALE {PS1_SCALE_FACTOR}
 
 // Vertices (fixed-point, scaled by {PS1_SCALE_FACTOR})
-SVECTOR vertices[VERTICES_COUNT] = {{
+SVECTOR {prefix}_vertices[{prefix_upper}_VERTICES_COUNT] = {{
 """
         
         for v in vertices:
@@ -465,21 +541,30 @@ SVECTOR vertices[VERTICES_COUNT] = {{
         
         content += "};\n\n"
         
-        # Texture defines
+        # Normals (normalized, scaled by 4096 = ONE)
+        content += f"// Normals (for lighting calculations)\n"
+        content += f"SVECTOR {prefix}_normals[{prefix_upper}_VERTICES_COUNT] = {{\n"
+        
+        for n in normals:
+            content += f"    {{ {n['x']}, {n['y']}, {n['z']} }},\n"
+        
+        content += "};\n\n"
+        
+        # Texture defines (prefixed to avoid conflicts)
         if texture_names:
             content += "// Texture references\n"
-            content += f"#define TEXTURE_COUNT {len(texture_names)}\n"
+            content += f"#define {prefix_upper}_TEXTURE_COUNT {len(texture_names)}\n"
             for i, tex_name in enumerate(sorted(texture_names)):
                 # Clean texture name for C identifier (remove extension, replace invalid chars)
                 clean_name = os.path.splitext(tex_name)[0].upper().replace(' ', '_').replace('-', '_').replace('.', '_')
-                content += f"#define TEXTURE_{i}_NAME \"{tex_name}\"\n"
-                content += f"#define TEXTURE_{clean_name} {i}\n"
+                content += f"#define {prefix_upper}_TEXTURE_{i}_NAME \"{tex_name}\"\n"
+                content += f"#define {prefix_upper}_TEXTURE_{clean_name} {i}\n"
             content += "\n"
         
         # UVs
         if uvs:
             content += f"// UV Coordinates\n"
-            content += "SVECTOR uvs[UVS_COUNT] = {\n"
+            content += f"SVECTOR {prefix}_uvs[{prefix_upper}_UVS_COUNT] = {{\n"
             for uv in uvs:
                 content += f"    {{ {uv['u']}, {uv['v']}, 0 }},\n"
             content += "};\n\n"
@@ -489,7 +574,7 @@ SVECTOR vertices[VERTICES_COUNT] = {{
         quad_count = len(faces) - tri_count
         
         if tri_count > 0:
-            content += f"int tri_faces[{tri_count}][3] = {{\n"
+            content += f"int {prefix}_tri_faces[{tri_count}][3] = {{\n"
             for face in faces:
                 if face['is_tri']:
                     v = face['vertices']
@@ -497,15 +582,21 @@ SVECTOR vertices[VERTICES_COUNT] = {{
             content += "};\n\n"
             
             if uvs:
-                content += f"int tri_uvs[{tri_count}][3] = {{\n"
+                content += f"int {prefix}_tri_uvs[{tri_count}][3] = {{\n"
                 for face in faces:
                     if face['is_tri']:
                         uv = face['uvs']
                         content += f"    {{ {uv[0]}, {uv[1]}, {uv[2]} }},\n"
                 content += "};\n\n"
+        else:
+            # Export dummy arrays for models with no triangles
+            content += f"int {prefix}_tri_faces[1][3] = {{ {{0, 0, 0}} }};\n"
+            if uvs:
+                content += f"int {prefix}_tri_uvs[1][3] = {{ {{0, 0, 0}} }};\n"
+            content += "\n"
         
         if quad_count > 0:
-            content += f"int quad_faces[{quad_count}][4] = {{\n"
+            content += f"int {prefix}_quad_faces[{quad_count}][4] = {{\n"
             for face in faces:
                 if not face['is_tri']:
                     v = face['vertices']
@@ -513,23 +604,21 @@ SVECTOR vertices[VERTICES_COUNT] = {{
             content += "};\n\n"
             
             if uvs:
-                content += f"int quad_uvs[{quad_count}][4] = {{\n"
+                content += f"int {prefix}_quad_uvs[{quad_count}][4] = {{\n"
                 for face in faces:
                     if not face['is_tri']:
                         uv = face['uvs']
                         content += f"    {{ {uv[0]}, {uv[1]}, {uv[2]}, {uv[3]} }},\n"
                 content += "};\n\n"
+        else:
+            # Export dummy arrays for models with no quads
+            content += f"int {prefix}_quad_faces[1][4] = {{ {{0, 0, 0, 0}} }};\n"
+            if uvs:
+                content += f"int {prefix}_quad_uvs[1][4] = {{ {{0, 0, 0, 0}} }};\n"
+            content += "\n"
         
-        # Per-face texture index
-        content += "// Per-face texture index (-1 = no texture)\n"
-        content += "signed char face_texture_idx[FACES_COUNT] = {\n"
-        for mat in materials:
-            content += f"    {mat['texture_index']},\n"
-        content += "};\n\n"
-        
-        content += "// Material flags\n"
-        content += "// Bit 0: unlit, Bit 1: textured, Bit 2: smooth, Bit 3: vertex colors\n"
-        content += f"unsigned char material_flags[FACES_COUNT] = {{\n"
+        # Material flags: Bit 0: unlit, Bit 1: textured, Bit 2: smooth, Bit 3: vertex_color, Bit 4: alpha, Bit 5: cutout, Bit 6: specular, Bit 7: metallic
+        content += f"unsigned char {prefix}_material_flags[{prefix_upper}_FACES_COUNT] = {{\n"
         
         for mat in materials:
             flags = 0
@@ -541,6 +630,14 @@ SVECTOR vertices[VERTICES_COUNT] = {{
                 flags |= (1 << 2)
             if mat['has_vertex_colors']:
                 flags |= (1 << 3)
+            if mat['has_alpha'] and enable_semi_transparency:
+                flags |= (1 << 4)
+            if mat['has_alpha'] and enable_cutout_transparency:
+                flags |= (1 << 5)
+            if self.enable_specular:
+                flags |= (1 << 6)
+            if self.enable_metallic:
+                flags |= (1 << 7)
             content += f"    0b{flags:08b},  // "
             desc = []
             desc.append("unlit" if not mat['is_lit'] else "lit")
@@ -549,16 +646,48 @@ SVECTOR vertices[VERTICES_COUNT] = {{
             desc.append("smooth" if mat['is_smooth'] else "flat")
             if mat['has_vertex_colors']:
                 desc.append("vertex-colored")
+            if mat['has_alpha']:
+                if enable_semi_transparency:
+                    desc.append("alpha")
+                if enable_cutout_transparency:
+                    desc.append("cutout")
+            if self.enable_specular:
+                desc.append(f"specular({mat.get('specular', 0.5):.2f})")
+            if self.enable_metallic:
+                desc.append(f"metallic({mat.get('metallic', 0.0):.2f})")
             content += ", ".join(desc) + "\n"
         
         content += "};\n\n"
+                # Export specular values if enabled
+        if self.enable_specular:
+            content += f"// Specular values (0-255, where 255 = maximum specular)\n"
+            content += f"unsigned char {prefix}_specular[{prefix_upper}_FACES_COUNT] = {{\n"
+            for mat in materials:
+                specular_value = int(mat.get('specular', 0.5) * 255)
+                content += f"    {specular_value},  // {mat.get('specular', 0.5):.2f}\n"
+            content += "};\n\n"
         
+        # Export metallic values if enabled
+        if self.enable_metallic:
+            content += f"// Metallic values (0-255, where 255 = fully metallic)\n"
+            content += f"unsigned char {prefix}_metallic[{prefix_upper}_FACES_COUNT] = {{\n"
+            for mat in materials:
+                metallic_value = int(mat.get('metallic', 0.0) * 255)
+                content += f"    {metallic_value},  // {mat.get('metallic', 0.0):.2f}\n"
+            content += "};\n\n"
+                # Always export vertex_colors array (even if empty) so code compiles
+        content += f"// Vertex Colors\n"
         if has_vertex_colors and vertex_colors:
-            content += f"// Vertex Colors\n"
-            content += f"#define VERTEX_COLORS_COUNT {len(vertex_colors)}\n"
-            content += "CVECTOR vertex_colors[VERTEX_COLORS_COUNT] = {\n"
+            content += f"#define {prefix_upper}_VERTEX_COLORS_COUNT {len(vertex_colors)}\n"
+            content += f"CVECTOR {prefix}_vertex_colors[{prefix_upper}_VERTEX_COLORS_COUNT] = {{\n"
             for vc in vertex_colors:
                 content += f"    {{ {vc['r']}, {vc['g']}, {vc['b']}, 0 }},\n"
+            content += "};\n\n"
+        else:
+            # Export empty array for models without vertex colors
+            content += f"#define {prefix_upper}_VERTEX_COLORS_COUNT 1\n"
+            content += f"CVECTOR {prefix}_vertex_colors[{prefix_upper}_VERTEX_COLORS_COUNT] = {{\n"
+            content += "    { 128, 128, 128, 0 }  // Default gray\n"
             content += "};\n\n"
         
         content += "#endif\n"
