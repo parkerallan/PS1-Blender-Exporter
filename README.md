@@ -11,7 +11,8 @@ A Blender 4.0 addon that exports 3D models and animation data to C header files 
 - **Automatic triangulation** - Converts n-gons to tris/quads (PS1 only supports 3-4 sided polygons)  
 
 <img width="1226" height="942" alt="Screenshot 2026-01-10 124122" src="https://github.com/user-attachments/assets/57d44c12-bf90-4601-ae0e-88db7622bb51" />
-<img width="1004" height="736" alt="Screenshot 2026-01-31 052308" src="https://github.com/user-attachments/assets/deafa61b-e895-4665-b90f-a3f91f3e41c9" />
+![PCSX-Redux2026-01-3106-21-23-ezgif com-video-to-gif-converter](https://github.com/user-attachments/assets/12f6a7f9-9cfb-4097-a4a3-9363cf9adae4)
+
 
 ## Installation
 
