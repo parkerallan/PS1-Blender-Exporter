@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!-- Audio Test - MKPSXISO XML script -->
+
+<iso_project image_name="CDROM/modelviewer.bin" cue_sheet="CDROM/modelviewer.cue">
+
+	<!-- Data Track (Track 1) -->
+	<track type="data">
+	
+		<identifiers
+			system			="PLAYSTATION"
+			application		="PLAYSTATION"
+			volume			="MODELVIEWER"
+			volume_set		="MODELVIEWER"
+			publisher		=""
+			data_preparer	="MKPSXISO"
+		/>
+		
+		<directory_tree>
+			<file name="system.cnf"	type="data"	source="CDROM/SYSTEM.CNF"/>
+			<file name="MAIN.EXE"	type="data"	source="build/modelviewer.ps-exe"/>
+		</directory_tree>
+		
+	</track>
+
+	<!-- Audio Track (Track 2) - lastecho -->
+	<track type="audio" source="AUDIO/lastecho.wav"/>
+	
+</iso_project>

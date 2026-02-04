@@ -1,7 +1,6 @@
 /*
  * PlayStation 1 Model Viewer Example
  * Renders the Rika model with idle/walk animation switching
- * Press X to switch between animations
  */
 
 #include <stdlib.h>
@@ -17,6 +16,7 @@
 #include "lib/texture.h"
 #include "lib/camera.h"
 #include "lib/animation.h"
+#include "lib/sound.h"
 
 // Include model and animations
 #include "chardata/rika.h"
@@ -25,6 +25,12 @@
 #include "chardata/coin.h"
 #include "chardata/coin-spin.h"
 #include "chardata/star.h"
+
+// Include texture data for VRAM manager
+#include "chardata/rikatexture.h"
+#include "chardata/moontexture.h"
+#include "chardata/startexture.h"
+#include "chardata/cointexture.h"
 
 // Include model rendering
 #include "lib/model.h"
@@ -38,6 +44,16 @@ ModelData star_model;
 
 // Coin animation state
 int coin_frame = 0;
+
+//----------------------------------------------------------
+// Texture Slots - each texture gets its own slot
+//----------------------------------------------------------
+#define SLOT_0  0
+#define SLOT_1  1
+#define SLOT_2  2
+#define SLOT_3  3
+#define SLOT_4  4
+#define SLOT_5  5
 
 //----------------------------------------------------------
 // Initialize model data structures
@@ -115,6 +131,17 @@ void initModels(void) {
 }
 
 //----------------------------------------------------------
+// Load All Textures via VRAM Manager
+//----------------------------------------------------------
+void loadAllTextures(void) {
+    BindTexture(rikatexture_tim, SLOT_0, NULL);
+    BindTexture(moontexture_tim, SLOT_1, NULL);
+    BindTexture(startexture_tim, SLOT_2, NULL);
+    BindTexture(cointexture_tim, SLOT_3, NULL);
+    DrawSync(0);
+}
+
+//----------------------------------------------------------
 // Render all models
 //----------------------------------------------------------
 void renderScene(void) {
@@ -124,7 +151,8 @@ void renderScene(void) {
     SetTransMatrix(&view_matrix);
     
     // Render rika model at origin with view matrix
-    nextpri = renderModel(getCurrentAnimVerts(), &rika_model, nextpri, cdb->ot, OT_LENGTH, tpage, clut);
+    nextpri = renderModel(getCurrentAnimVerts(), &rika_model, nextpri, cdb->ot, OT_LENGTH, 
+                          GetSlotTPage(SLOT_0), GetSlotClut(SLOT_0));
     
     // Render ground plane positioned below rika
     MATRIX ground_world_matrix;
@@ -141,9 +169,11 @@ void renderScene(void) {
     SetRotMatrix(&ground_view_matrix);
     SetTransMatrix(&ground_view_matrix);
     
-    nextpri = renderModel(ground_vertices, &ground_model, nextpri, cdb->ot, OT_LENGTH, tpage, clut);
+    nextpri = renderModel(ground_vertices, &ground_model, nextpri, cdb->ot, OT_LENGTH, 
+                          GetSlotTPage(SLOT_0), GetSlotClut(SLOT_0));
     
     // Render moon plane positioned above rika
+    // Uses VRAM manager slot - texture loaded via BindTexture at init
     MATRIX moon_world_matrix;
     SVECTOR moon_rot = {0, 0, 0};
     VECTOR moon_pos = {0, 0, 0};  // Position moon in the sky
@@ -158,7 +188,9 @@ void renderScene(void) {
     SetRotMatrix(&moon_view_matrix);
     SetTransMatrix(&moon_view_matrix);
     
-    nextpri = renderModel(moon_vertices, &moon_model, nextpri, cdb->ot, OT_LENGTH, moon_tpage, moon_clut);
+    // Get tpage/clut from VRAM manager slot
+    nextpri = renderModel(moon_vertices, &moon_model, nextpri, cdb->ot, OT_LENGTH, 
+                          GetSlotTPage(SLOT_1), GetSlotClut(SLOT_1));
     
     // Render coin with spin animation to the left of rika
     MATRIX coin_world_matrix;
@@ -174,14 +206,15 @@ void renderScene(void) {
     SetRotMatrix(&coin_view_matrix);
     SetTransMatrix(&coin_view_matrix);
     
-    // Get current coin animation frame
+    // Get current coin animation frame - use VRAM slot for texture
     SVECTOR *coin_verts = spin_anim[coin_frame];
-    nextpri = renderModel(coin_verts, &coin_model, nextpri, cdb->ot, OT_LENGTH, coin_tpage, coin_clut);
+    nextpri = renderModel(coin_verts, &coin_model, nextpri, cdb->ot, OT_LENGTH, 
+                          GetSlotTPage(SLOT_3), GetSlotClut(SLOT_3));
     
     // Update coin animation frame
     coin_frame = (coin_frame + 1) % SPIN_FRAMES_COUNT;
     
-    // Render star to the right of rika
+    // Render star to the right of rika - use VRAM slot for texture
     MATRIX star_world_matrix;
     SVECTOR star_rot = {0, 0, 0};
     VECTOR star_pos = {3000, -2000, 0};  // Right of rika
@@ -195,7 +228,8 @@ void renderScene(void) {
     SetRotMatrix(&star_view_matrix);
     SetTransMatrix(&star_view_matrix);
     
-    nextpri = renderModel(star_vertices, &star_model, nextpri, cdb->ot, OT_LENGTH, star_tpage, star_clut);
+    nextpri = renderModel(star_vertices, &star_model, nextpri, cdb->ot, OT_LENGTH, 
+                          GetSlotTPage(SLOT_2), GetSlotClut(SLOT_2));
 }
 
 //----------------------------------------------------------
@@ -208,7 +242,17 @@ int main(void) {
     initController();
     initCamera();
     initAnimation();
-    loadTexture();
+    
+    // Initialize VRAM manager and load all textures
+    initVRAMManager();
+    loadAllTextures();
+    
+    // Initialize sound system
+    initSound();
+
+    // Play track 2 (lastecho.wav)
+    playCDTrack(2);
+
     initModels();
     
     // Main loop
@@ -229,6 +273,7 @@ int main(void) {
         FntPrint(fontId, "Animation: %s\n", current_anim == 0 ? "IDLE" : "WALK");
         FntPrint(fontId, "Frame: %d/%d\n", current_frame, getAnimFrameCount());
         FntPrint(fontId, "Camera: X=%d Y=%d Z=%d\n", camera_position.vx, camera_position.vy, camera_position.vz);
+        FntPrint(fontId, "VRAM Slots: 4/%d in use\n", VRAM_SLOT_COUNT);
         FntFlush(fontId);
         
         // Render scene

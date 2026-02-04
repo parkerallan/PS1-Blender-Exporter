@@ -10,6 +10,7 @@ lib/input.c \
 lib/texture.c \
 lib/camera.c \
 lib/animation.c \
+lib/sound.c \
 ../../third_party/nugget/common/crt0/crt0.s
 
 CPPFLAGS += -I../../third_party/psyq/include
@@ -19,6 +20,7 @@ LDFLAGS += -Wl,--start-group
 LDFLAGS += -lapi
 LDFLAGS += -lc
 LDFLAGS += -lc2
+LDFLAGS += -lcd
 LDFLAGS += -lcard
 LDFLAGS += -lcomb
 LDFLAGS += -lds

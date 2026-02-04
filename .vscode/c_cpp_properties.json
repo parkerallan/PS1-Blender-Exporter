@@ -1,0 +1,17 @@
+{
+    "configurations": [
+        {
+            "name": "MIPS PS1",
+            "includePath": [
+                "${workspaceFolder}/**",
+                "${workspaceFolder}/third_party/nugget/**",
+                "C:/Users/parke/AppData/Roaming/mips/versions/v14.2.0/mipsel-none-elf/include/**"
+            ],
+            "compilerPath": "C:/Users/parke/AppData/Roaming/mips/versions/v14.2.0/bin/mipsel-none-elf-g++.exe",
+            "cStandard": "c17",
+            "cppStandard": "c++20",
+            "intelliSenseMode": "gcc-x86"
+        }
+    ],
+    "version": 4
+}
