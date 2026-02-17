@@ -5,9 +5,15 @@
 void initSound(void);
 
 // Play a CD audio track (track number, e.g., 2 for second track)
-void playCDTrack(int track);
+void playCDTrackLoop(int track);
+
+// Play a CD audio track once (no looping)
+void playCDTrackOnce(int track);
 
 // Stop CD playback
-void stopCD(void);
+void stopCDTrack(void);
+
+// Set volume (0-255)
+void setCDVolume(int volume);
 
 #endif

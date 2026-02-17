@@ -15,6 +15,9 @@
 #define MAT_FLAG_SPECULAR     (1 << 6)
 #define MAT_FLAG_METALLIC     (1 << 7)
 
+// OTZ shift for extended draw distance (shift right by 2 = 4x range)
+#define OTZ_SHIFT 2
+
 //----------------------------------------------------------
 // Check if model has any faces with cutout transparency
 //----------------------------------------------------------
@@ -108,6 +111,14 @@ static char* renderTriangles(
     long otz, p, flg;
     
     for (i = 0; i < model->tri_count; i++) {
+        // Check mesh visibility
+        if (model->mesh_ids) {
+            unsigned char mesh_id = model->mesh_ids[i];
+            if (!(model->visible_meshes & (1 << mesh_id))) {
+                continue;  // Skip this face
+            }
+        }
+        
         unsigned char flags = model->material_flags[i];
         int v0 = model->tri_faces[i][0];
         int v1 = model->tri_faces[i][1];
@@ -131,6 +142,7 @@ static char* renderTriangles(
                     (long*)&poly->x0, (long*)&poly->x1, (long*)&poly->x2,
                     &p, &flg
                 );
+                otz >>= OTZ_SHIFT;  // Extend draw distance
                 
                 if (otz > 0 && otz < ot_length) {
                     int uv0 = model->tri_uvs[i][0];
@@ -206,6 +218,7 @@ static char* renderTriangles(
                     (long*)&poly->x0, (long*)&poly->x1, (long*)&poly->x2,
                     &p, &flg
                 );
+                otz >>= OTZ_SHIFT;  // Extend draw distance
                 
                 if (otz > 0 && otz < ot_length) {
                     int uv0 = model->tri_uvs[i][0];
@@ -267,6 +280,7 @@ static char* renderTriangles(
                     (long*)&poly->x0, (long*)&poly->x1, (long*)&poly->x2,
                     &p, &flg
                 );
+                otz >>= OTZ_SHIFT;  // Extend draw distance
                 
                 if (otz > 0 && otz < ot_length) {
                     // Apply lighting or set vertex colors
@@ -328,6 +342,7 @@ static char* renderTriangles(
                     (long*)&poly->x0, (long*)&poly->x1, (long*)&poly->x2,
                     &p, &flg
                 );
+                otz >>= OTZ_SHIFT;  // Extend draw distance
                 
                 if (otz > 0 && otz < ot_length) {
                     // Apply lighting or set color
@@ -388,6 +403,14 @@ static char* renderQuads(
     int face_index = model->tri_count;  // Quads start after triangles in material_flags
     
     for (i = 0; i < model->quad_count; i++, face_index++) {
+        // Check mesh visibility
+        if (model->mesh_ids) {
+            unsigned char mesh_id = model->mesh_ids[face_index];
+            if (!(model->visible_meshes & (1 << mesh_id))) {
+                continue;  // Skip this face
+            }
+        }
+        
         unsigned char flags = model->material_flags[face_index];
         int v0 = model->quad_faces[i][0];
         int v1 = model->quad_faces[i][1];
@@ -413,6 +436,7 @@ static char* renderQuads(
                     (long*)&poly->x2, (long*)&poly->x3,
                     &p, &flg
                 );
+                otz >>= OTZ_SHIFT;  // Extend draw distance
                 
                 if (otz > 0 && otz < ot_length) {
                     int uv0 = model->quad_uvs[i][0];
@@ -498,6 +522,7 @@ static char* renderQuads(
                     (long*)&poly->x2, (long*)&poly->x3,
                     &p, &flg
                 );
+                otz >>= OTZ_SHIFT;  // Extend draw distance
                 
                 if (otz > 0 && otz < ot_length) {
                     int uv0 = model->quad_uvs[i][0];
@@ -562,6 +587,7 @@ static char* renderQuads(
                     (long*)&poly->x2, (long*)&poly->x3,
                     &p, &flg
                 );
+                otz >>= OTZ_SHIFT;  // Extend draw distance
                 
                 if (otz > 0 && otz < ot_length) {
                     // Apply lighting or set vertex colors
@@ -631,6 +657,7 @@ static char* renderQuads(
                     (long*)&poly->x2, (long*)&poly->x3,
                     &p, &flg
                 );
+                otz >>= OTZ_SHIFT;  // Extend draw distance
                 
                 if (otz > 0 && otz < ot_length) {
                     // Apply lighting or set color

@@ -22,6 +22,27 @@
                 "reveal": "always",
                 "panel": "shared"
             }
+        },
+        {
+            "label": "Clean CD Image",
+            "type": "shell",
+            "command": "rm -f CDROM/*.bin CDROM/*.cue",
+            "options": {
+                "cwd": "${workspaceFolder}/examples/psyq",
+                "shell": {
+                    "executable": "C:/msys64/usr/bin/bash.exe",
+                    "args": ["-l", "-c"]
+                },
+                "env": {
+                    "MSYSTEM": "UCRT64",
+                    "CHERE_INVOKING": "1"
+                }
+            },
+            "problemMatcher": [],
+            "presentation": {
+                "reveal": "always",
+                "panel": "shared"
+            }
         }
     ]
 }

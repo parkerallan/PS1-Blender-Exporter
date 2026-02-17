@@ -9,7 +9,7 @@ void initGTE(void) {
     
     InitGeom();
     SetGeomOffset(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2);
-    SetGeomScreen(SCREEN_WIDTH / 2);
+    SetGeomScreen(512);  // Larger projection distance for better depth precision
     
     // Setup lighting - bright midday sun from above and slightly forward
     light_direction.vx = 0;      // No horizontal offset

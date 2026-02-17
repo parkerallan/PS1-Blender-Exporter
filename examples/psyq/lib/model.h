@@ -23,6 +23,8 @@ typedef struct {
     CVECTOR *vertex_colors;
     unsigned char *specular;  // Specular values (0-255)
     unsigned char *metallic;  // Metallic values (0-255)
+    unsigned char *mesh_ids;  // Mesh ID per face (for visibility control)
+    unsigned int visible_meshes;  // Bitmask: bit N = mesh N visible
 } ModelData;
 
 // Render the complete model with given vertices

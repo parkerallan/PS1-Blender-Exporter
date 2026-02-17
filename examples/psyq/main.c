@@ -72,6 +72,8 @@ void initModels(void) {
     rika_model.vertex_colors = rika_vertex_colors;
     rika_model.specular = NULL;  // Optional: set if exported with specular
     rika_model.metallic = NULL;  // Optional: set if exported with metallic
+    rika_model.mesh_ids = rika_mesh_ids;
+    rika_model.visible_meshes = 0xFFFFFFFF;  // All meshes visible by default
     
     // Setup ground model data structure
     ground_model.tri_count = GROUND_TRI_COUNT;
@@ -86,6 +88,8 @@ void initModels(void) {
     ground_model.vertex_colors = ground_vertex_colors;
     ground_model.specular = NULL;  // Optional: set if exported with specular
     ground_model.metallic = NULL;  // Optional: set if exported with metallic
+    ground_model.mesh_ids = NULL;  // TODO: Re-export ground model
+    ground_model.visible_meshes = 0xFFFFFFFF;  // All meshes visible by default
     
     // Setup moon model data structure
     moon_model.tri_count = MOON_TRI_COUNT;
@@ -100,6 +104,8 @@ void initModels(void) {
     moon_model.vertex_colors = moon_vertex_colors;
     moon_model.specular = NULL;  // Optional: set if exported with specular
     moon_model.metallic = NULL;  // Optional: set if exported with metallic
+    moon_model.mesh_ids = NULL;  // TODO: Re-export moon model
+    moon_model.visible_meshes = 0xFFFFFFFF;  // All meshes visible by default
     
     // Setup coin model data structure (with metallic)
     coin_model.tri_count = COIN_TRI_COUNT;
@@ -114,6 +120,8 @@ void initModels(void) {
     coin_model.vertex_colors = coin_vertex_colors;
     coin_model.specular = NULL;
     coin_model.metallic = coin_metallic;  // Coin uses metallic
+    coin_model.mesh_ids = NULL;  // TODO: Re-export coin model
+    coin_model.visible_meshes = 0xFFFFFFFF;  // All meshes visible by default
     
     // Setup star model data structure (with specular)
     star_model.tri_count = STAR_TRI_COUNT;
@@ -128,6 +136,8 @@ void initModels(void) {
     star_model.vertex_colors = star_vertex_colors;
     star_model.specular = star_specular;  // Star uses specular
     star_model.metallic = NULL;
+    star_model.mesh_ids = NULL;  // TODO: Re-export star model
+    star_model.visible_meshes = 0xFFFFFFFF;  // All meshes visible by default
 }
 
 //----------------------------------------------------------
@@ -249,9 +259,10 @@ int main(void) {
     
     // Initialize sound system
     initSound();
-
     // Play track 2 (lastecho.wav)
-    playCDTrack(2);
+    playCDTrackLoop(2);
+    // Set volume
+    setCDVolume(10);
 
     initModels();
     
@@ -259,6 +270,11 @@ int main(void) {
     while (1) {
         // Handle input
         handleInput();
+        
+        // Circle button to toggle head visibility (mesh 3)
+        if ((padState & PADRright) && !(padStateOld & PADRright)) {
+            rika_model.visible_meshes ^= (1 << 3);  // Toggle bit 3 (Head)
+        }
         
         // Update animation
         updateAnimation();
@@ -274,6 +290,7 @@ int main(void) {
         FntPrint(fontId, "Frame: %d/%d\n", current_frame, getAnimFrameCount());
         FntPrint(fontId, "Camera: X=%d Y=%d Z=%d\n", camera_position.vx, camera_position.vy, camera_position.vz);
         FntPrint(fontId, "VRAM Slots: 4/%d in use\n", VRAM_SLOT_COUNT);
+        FntPrint(fontId, "Head: %s (Circle to toggle)\n", (rika_model.visible_meshes & (1 << 3)) ? "ON" : "OFF");
         FntFlush(fontId);
         
         // Render scene
