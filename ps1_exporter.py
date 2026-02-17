@@ -1,7 +1,7 @@
 bl_info = {
     "name": "PlayStation 1 Exporter",
     "author": "parkerallan",
-    "version": (1, 1, 2),
+    "version": (1, 2, 2),
     "blender": (4, 0, 0),
     "location": "File > Export > PlayStation 1 (.h)",
     "description": "Exports models and animations to PlayStation 1 C header files with SVECTOR format",
@@ -329,7 +329,7 @@ class ExportPS1(Operator, ExportHelper):
         uv_offset = 0
         
         # Combine all mesh objects
-        for obj in mesh_objects:
+        for mesh_index, obj in enumerate(mesh_objects):
             mesh = obj.data
             
             # Get the world matrix to apply object transforms (location, rotation, scale)
@@ -483,7 +483,9 @@ class ExportPS1(Operator, ExportHelper):
                 all_faces.append({
                     'vertices': vert_indices,
                     'uvs': uv_indices,
-                    'is_tri': len(poly.vertices) == 3
+                    'is_tri': len(poly.vertices) == 3,
+                    'mesh_id': mesh_index,
+                    'mesh_name': obj.name
                 })
                 all_materials.append(mat_props)
             
@@ -675,7 +677,25 @@ SVECTOR {prefix}_vertices[{prefix_upper}_VERTICES_COUNT] = {{
                 metallic_value = int(mat.get('metallic', 0.0) * 255)
                 content += f"    {metallic_value},  // {mat.get('metallic', 0.0):.2f}\n"
             content += "};\n\n"
-                # Always export vertex_colors array (even if empty) so code compiles
+        
+        # Export mesh IDs for per-mesh visibility control
+        content += f"// Mesh IDs (for per-mesh visibility)\n"
+        content += f"unsigned char {prefix}_mesh_ids[{prefix_upper}_FACES_COUNT] = {{\n"
+        # Write triangle mesh IDs first
+        for face in faces:
+            if face['is_tri']:
+                mesh_id = face.get('mesh_id', 0)
+                mesh_name = face.get('mesh_name', 'unknown')
+                content += f"    {mesh_id},  // {mesh_name}\n"
+        # Then write quad mesh IDs
+        for face in faces:
+            if not face['is_tri']:
+                mesh_id = face.get('mesh_id', 0)
+                mesh_name = face.get('mesh_name', 'unknown')
+                content += f"    {mesh_id},  // {mesh_name}\n"
+        content += "};\n\n"
+        
+        # Always export vertex_colors array (even if empty) so code compiles
         content += f"// Vertex Colors\n"
         if has_vertex_colors and vertex_colors:
             content += f"#define {prefix_upper}_VERTEX_COLORS_COUNT {len(vertex_colors)}\n"
