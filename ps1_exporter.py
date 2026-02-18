@@ -1,7 +1,7 @@
 bl_info = {
     "name": "PlayStation 1 Exporter",
     "author": "parkerallan",
-    "version": (1, 2, 2),
+    "version": (1, 2, 3),
     "blender": (4, 0, 0),
     "location": "File > Export > PlayStation 1 (.h)",
     "description": "Exports models and animations to PlayStation 1 C header files with SVECTOR format",
