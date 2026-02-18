@@ -391,7 +391,7 @@ class ExportPS1(Operator, ExportHelper):
             uv_layer = mesh.uv_layers.active.data if mesh.uv_layers.active else None
             
             # Extract faces and materials
-            for poly in mesh.polygons:
+            for poly_idx, poly in enumerate(mesh.polygons):
                 mat_props = detect_material_properties(mesh, poly, self.enable_unlit, self.enable_specular, self.enable_metallic)
                 
                 # Assign texture index
@@ -622,7 +622,11 @@ SVECTOR {prefix}_vertices[{prefix_upper}_VERTICES_COUNT] = {{
         # Material flags: Bit 0: unlit, Bit 1: textured, Bit 2: smooth, Bit 3: vertex_color, Bit 4: alpha, Bit 5: cutout, Bit 6: specular, Bit 7: metallic
         content += f"unsigned char {prefix}_material_flags[{prefix_upper}_FACES_COUNT] = {{\n"
         
-        for mat in materials:
+        # Write material flags in same order as faces: triangles first, then quads
+        ordered_materials = [mat for mat, face in zip(materials, faces) if face['is_tri']]
+        ordered_materials += [mat for mat, face in zip(materials, faces) if not face['is_tri']]
+        
+        for mat in ordered_materials:
             flags = 0
             if not mat['is_lit']:
                 flags |= (1 << 0)
@@ -664,7 +668,7 @@ SVECTOR {prefix}_vertices[{prefix_upper}_VERTICES_COUNT] = {{
         if self.enable_specular:
             content += f"// Specular values (0-255, where 255 = maximum specular)\n"
             content += f"unsigned char {prefix}_specular[{prefix_upper}_FACES_COUNT] = {{\n"
-            for mat in materials:
+            for mat in ordered_materials:
                 specular_value = int(mat.get('specular', 0.5) * 255)
                 content += f"    {specular_value},  // {mat.get('specular', 0.5):.2f}\n"
             content += "};\n\n"
@@ -673,7 +677,7 @@ SVECTOR {prefix}_vertices[{prefix_upper}_VERTICES_COUNT] = {{
         if self.enable_metallic:
             content += f"// Metallic values (0-255, where 255 = fully metallic)\n"
             content += f"unsigned char {prefix}_metallic[{prefix_upper}_FACES_COUNT] = {{\n"
-            for mat in materials:
+            for mat in ordered_materials:
                 metallic_value = int(mat.get('metallic', 0.0) * 255)
                 content += f"    {metallic_value},  // {mat.get('metallic', 0.0):.2f}\n"
             content += "};\n\n"
